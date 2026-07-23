@@ -1,8 +1,9 @@
-import json, os, platform, shutil, subprocess, time
+import json, os, platform, shutil, subprocess, sys, time
+from ctypes import c_void_p
 from pathlib import Path
-from PySide6.QtCore import QObject, QRunnable, QSettings, QSize, QThreadPool, QTimer, Qt, Signal, QUrl
-from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
-from PySide6.QtWidgets import (
+from .qt_compat import (
+    QT_BINDING, QDesktopServices, QIcon, QPixmap, QObject, QRunnable, QSettings,
+    QSize, QThreadPool, QTimer, Qt, Signal, QUrl,
     QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout, QHBoxLayout, QLabel,
     QLineEdit, QMainWindow, QMessageBox, QProgressBar, QPushButton, QScrollArea,
     QSpinBox, QStackedWidget, QVBoxLayout, QWidget
@@ -42,7 +43,7 @@ class CameraView(QWidget):
         else:
             import importlib
             QWebEngineView = importlib.import_module(
-                "PySide6.QtWebEngineWidgets").QWebEngineView
+                f"{QT_BINDING}.QtWebEngineWidgets").QWebEngineView
             layout = QVBoxLayout(self)
             layout.setContentsMargins(0, 0, 0, 0)
             self.web_view = QWebEngineView(self)
@@ -584,7 +585,8 @@ class MainWindow(QMainWindow):
                 "--before", "default-reset", "--after", "hard-reset",
                 "write-flash", "0x0", str(fw),
             ]
-            if platform.system() == "Windows" and esptool_executable.exists():
+            if (platform.system() == "Windows" and esptool_executable.exists()
+                    and sys.maxsize > 2**32):
                 subprocess.run(
                     [str(esptool_executable), *esptool_arguments],
                     check=True, capture_output=True, text=True)
