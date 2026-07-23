@@ -1,8 +1,7 @@
 import sys
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication
 from . import __version__
 from .main_window import MainWindow
+from .qt_compat import QApplication, QIcon, application_exec
 from .services import asset_path
 from .styles import APP_STYLE
 
@@ -18,7 +17,7 @@ def main():
         "__DROPDOWN_ARROW__", str(asset_path("dropdown_arrow.svg"))))
     window = MainWindow()
     window.show()
-    raise SystemExit(app.exec())
+    raise SystemExit(application_exec(app))
 
 if __name__ == "__main__":
     main()

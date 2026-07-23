@@ -14,7 +14,7 @@ or PC application can be closed during the entire print.
 No compilation or Arduino IDE setup is required:
 
 - [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.2/Hackman3D-LayerShot-macOS-0.5.2.zip)
-- [Download for Windows 10/11 — Intel/AMD x64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.2/Hackman3D-LayerShot-Windows-x64-0.5.2.zip)
+- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.2/Hackman3D-LayerShot-Windows-Setup-0.5.2.exe)
 - [Standalone ESP32-C3 firmware 1.7.0](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.2/Hackman3D-LayerShot-ESP32-C3-Firmware-1.7.0.bin)
 
 The desktop application already contains the firmware and installs it from the
@@ -50,7 +50,7 @@ is ready to photograph every layer.
 - creates a video from imported photos with frame-rate, aspect-ratio, framing,
   rotation, quality and codec controls;
 - uses the same Qt interface, features, translations and version number on
-  macOS and Windows x64.
+  macOS plus 32-bit and 64-bit Windows.
 
 ## Supported printers
 
@@ -74,7 +74,7 @@ camera and layer-count availability depends on the API exposed by the printer.
 - an iPhone compatible with Bluetooth camera remotes;
 - a 2.4 GHz Wi-Fi network;
 - a printer exposing Moonraker on the same local network;
-- macOS 14 or later on Apple Silicon, or Windows 10/11 x64.
+- macOS 14 or later on Apple Silicon, or Windows 10/11 (32-bit or 64-bit).
 
 ## Installation
 
@@ -202,14 +202,16 @@ End users should use the ready-to-run downloads above. Contributors need Python
 ./build_macos.sh
 ```
 
-### Windows x64
+### Windows 32-bit and 64-bit
 
 ```powershell
 .\build_windows.ps1
 ```
 
 Both scripts package the shared files under `src/hackman_layershot` and produce
-application version 0.5.2.
+application version 0.5.2. The Windows script requires Python 3.12 x64,
+Python 3.10 x86 and Inno Setup 7. It produces one installer that automatically
+selects the correct architecture; end users do not need Python or Inno Setup.
 
 ## Firmware source
 
@@ -219,10 +221,14 @@ ready-to-flash firmware image.
 
 ## Third-party components
 
-LayerShot uses [Espressif esptool 5.3.1](https://github.com/espressif/esptool/tree/v5.3.1)
-to flash the ESP32-C3. Its GPL licence is included with the bundled Windows
-executable in `src/hackman_layershot/assets/esptool-LICENSE.txt`. The remaining
-Python and Qt dependencies are listed in `pyproject.toml`.
+The Windows x64 application uses
+[Espressif esptool 5.3.1](https://github.com/espressif/esptool/tree/v5.3.1);
+the x86 compatibility application embeds the Python implementation of esptool
+4.8.1. The GPL licence is included in
+`src/hackman_layershot/assets/esptool-LICENSE.txt`. The Windows x86 interface
+uses the last official LGPL PySide2 release supporting 32-bit Windows, while
+the other builds use PySide6. The main Python and Qt dependencies are listed in
+`pyproject.toml` and `build_windows.ps1`.
 
 ## Support
 

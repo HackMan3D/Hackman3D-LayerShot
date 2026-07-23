@@ -1,11 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
+import os
 import sys
 from PyInstaller.utils.hooks import collect_all
 
 root = Path(SPECPATH)
 assets = root / "src" / "hackman_layershot" / "assets"
-if sys.platform == "win32":
+build_arch = os.environ.get("LAYERSHOT_BUILD_ARCH", "x64")
+windows_x86 = sys.platform == "win32" and build_arch == "x86"
+if windows_x86:
+    esptool_datas, esptool_binaries, esptool_hiddenimports = collect_all("esptool")
+    platform_hiddenimports = ["PySide2.QtWebEngineWidgets"]
+elif sys.platform == "win32":
     esptool_datas, esptool_binaries, esptool_hiddenimports = [], [], []
     platform_hiddenimports = ["PySide6.QtWebEngineWidgets"]
 else:
@@ -23,7 +29,9 @@ pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Hackman3D LayerShot",
           debug=False, bootloader_ignore_signals=False, strip=False, upx=True,
           console=False, icon=str(assets / ("Hackman3DLayerShot.icns" if sys.platform == "darwin" else "Hackman3DLayerShot.ico")))
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=True, name="Hackman3D LayerShot")
+distribution_name = ("Hackman3D LayerShot" if sys.platform == "darwin"
+                     else f"Hackman3D LayerShot {build_arch}")
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=True, name=distribution_name)
 if sys.platform == "darwin":
     app = BUNDLE(coll, name="Hackman3D LayerShot.app",
                  icon=str(assets / "Hackman3DLayerShot.icns"),
