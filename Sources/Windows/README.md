@@ -2,6 +2,20 @@
 
 Native Windows application built with .NET 8 WinForms. A self-contained publish produces an executable that does not require a separate .NET installation.
 
+## Compile on a Windows PC
+
+1. Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+2. Extract the complete source archive.
+3. Right-click `build-windows.ps1` and choose **Run with PowerShell**.
+4. The compiled application will be created under `Build\Windows-x64`.
+
+If Windows prevents the script from running, open PowerShell inside this directory and run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\build-windows.ps1
+```
+
 ## Ready-to-run downloads
 
 End users do not need the .NET SDK or Arduino IDE:
