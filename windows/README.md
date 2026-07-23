@@ -2,6 +2,15 @@
 
 Native Windows application built with .NET 8 WinForms. A self-contained publish produces an executable that does not require a separate .NET installation.
 
+## Ready-to-run downloads
+
+End users do not need the .NET SDK or Arduino IDE:
+
+- [Windows x64 release](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-Windows-x64-0.4.0.zip)
+- [Windows ARM64 release](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-Windows-ARM64-0.4.0.zip)
+
+The release packages include `esptool.exe` and the matching firmware binaries. Keep the executable and its `Resources` directory together. Firmware installation is performed from inside Hackman3D LayerShot.
+
 ## Build
 
 ```powershell
@@ -12,14 +21,14 @@ dotnet publish .\Hackman3D.LayerShot.Windows\Hackman3D.LayerShot.Windows.csproj 
 
 Replace `win-x64` with `win-arm64` for Windows on ARM.
 
-## Additional tools
+## Additional development tools
 
-The following files can be placed in a `Resources` directory next to the executable:
+Custom development builds expect the following files in a `Resources` directory next to the executable:
 
 - `esptool.exe` and the firmware binaries for USB flashing;
 - `ffmpeg.exe` for video export.
 
-Without these files, printer monitoring and network configuration remain available. The application clearly reports which optional component is missing.
+Official release packages already include the firmware flashing components. Video export requires `ffmpeg.exe`; without it, printer monitoring, firmware installation, and network configuration remain available.
 
 ## Architectures
 

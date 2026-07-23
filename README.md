@@ -4,6 +4,18 @@ Hackman3D LayerShot turns an ESP32-C3 into an autonomous Bluetooth camera shutte
 
 The desktop application installs and configures the device, monitors one or more Creality/Klipper printers, and assembles the captured photos. Once the settings have been sent to the ESP32, the desktop application does not need to remain open during a print.
 
+## Download
+
+No compilation or Arduino IDE setup is required. Download the application for your computer:
+
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-macOS-0.4.0.zip)
+- [Download for Windows — Intel/AMD x64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-Windows-x64-0.4.0.zip)
+- [Download for Windows — ARM64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-Windows-ARM64-0.4.0.zip)
+
+The desktop packages include the ESP32 flashing tool and the correct firmware files. Connect the ESP32-C3 by USB and use the installation section inside Hackman3D LayerShot. The application detects the serial port, flashes the firmware, and guides the user through Wi-Fi and printer setup.
+
+The [standalone ESP32-C3 firmware image](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-ESP32-C3-Firmware-1.1.0.bin) is also available for recovery and advanced use, but normal users should install and update the firmware through the desktop application.
+
 ## Features
 
 - iPhone camera shutter control through Bluetooth HID (`Volume +`);
@@ -24,17 +36,22 @@ The desktop application installs and configures the device, monitors one or more
 
 The firmware uses `hackman-layershot.local` as its network name and `Hackman3D LayerShot` as its Bluetooth name.
 
-## Quick start
+## Installation
 
-1. Flash the firmware with the desktop application.
-2. Connect the Mac or PC to the temporary `Hackman3D-LayerShot` Wi-Fi network.
-3. Send the home Wi-Fi credentials and printer address to the device.
-4. Hold BOOT for approximately three seconds, then select `Hackman3D LayerShot` under Settings > Bluetooth on the iPhone.
-5. Open the Camera app and start the print.
+Everything required for normal setup is handled by the desktop application:
+
+1. Download and open Hackman3D LayerShot for macOS or Windows.
+2. Connect the ESP32-C3 to the computer by USB.
+3. In the application, detect the USB port and select **Install firmware**.
+4. Follow the application instructions to configure Wi-Fi and the printer.
+5. Hold BOOT for approximately three seconds, then select `Hackman3D LayerShot` under Settings > Bluetooth on the iPhone.
+6. Open the Camera app and start the print.
 
 A short BOOT-button press enables pairing. Holding the button for at least ten seconds removes previously paired Bluetooth devices.
 
-## Building the applications
+## Building from source
+
+The following instructions are for contributors only. End users should download the ready-to-run applications above.
 
 ### macOS
 
