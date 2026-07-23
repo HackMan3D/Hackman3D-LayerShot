@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Hackman3D LayerShot</string>
+	<key>CFBundleExecutable</key>
+	<string>LayerShot</string>
+	<key>CFBundleIconFile</key>
+	<string>Hackman3DLayerShot.icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.hackman3d.layershot</string>
+	<key>CFBundleName</key>
+	<string>Hackman3D LayerShot</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.4.0</string>
+	<key>CFBundleVersion</key>
+	<string>14</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+		<string>_moonraker._tcp</string>
+	</array>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>LayerShot communique avec votre imprimante Creality et votre boîtier ESP32 sur le réseau local.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>LayerShot utilise la localisation uniquement pour afficher les noms des réseaux Wi-Fi proches lors de la configuration de l’ESP32.</string>
+</dict>
+</plist>
