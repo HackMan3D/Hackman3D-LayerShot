@@ -1,8 +1,8 @@
-# Hackman3D LayerShot pour Windows
+# Hackman3D LayerShot for Windows
 
-Application Windows native basée sur .NET 8 WinForms. La publication autonome génère un exécutable qui ne demande pas d’installation séparée de .NET.
+Native Windows application built with .NET 8 WinForms. A self-contained publish produces an executable that does not require a separate .NET installation.
 
-## Compilation
+## Build
 
 ```powershell
 dotnet publish .\Hackman3D.LayerShot.Windows\Hackman3D.LayerShot.Windows.csproj `
@@ -10,18 +10,18 @@ dotnet publish .\Hackman3D.LayerShot.Windows\Hackman3D.LayerShot.Windows.csproj 
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
-Pour Windows ARM64, remplacez `win-x64` par `win-arm64`.
+Replace `win-x64` with `win-arm64` for Windows on ARM.
 
-## Outils annexes
+## Additional tools
 
-Les fichiers suivants peuvent être placés dans un dossier `Resources` à côté de l’exécutable :
+The following files can be placed in a `Resources` directory next to the executable:
 
-- `esptool.exe` et les binaires du firmware pour le flash USB ;
-- `ffmpeg.exe` pour l’export vidéo.
+- `esptool.exe` and the firmware binaries for USB flashing;
+- `ffmpeg.exe` for video export.
 
-Sans ces fichiers, la surveillance des imprimantes et la configuration réseau restent disponibles ; l’application indique clairement quelle fonction facultative manque.
+Without these files, printer monitoring and network configuration remain available. The application clearly reports which optional component is missing.
 
 ## Architectures
 
-- `win-x64` : PC Windows Intel et AMD ;
-- `win-arm64` : PC Windows ARM et machines virtuelles Windows 11 ARM, notamment sous Parallels sur Mac Apple Silicon.
+- `win-x64`: Windows PCs with Intel or AMD processors;
+- `win-arm64`: Windows ARM PCs and Windows 11 ARM virtual machines, including Parallels on Apple Silicon Macs.
