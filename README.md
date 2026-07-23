@@ -28,6 +28,21 @@ The [standalone ESP32-C3 firmware image](https://github.com/HackMan3D/Hackman3D-
 - macOS and Windows desktop applications plus ESP32-C3 firmware;
 - multilingual macOS interface.
 
+## Supported languages
+
+The macOS application currently includes the following interface languages:
+
+| | | |
+|---|---|---|
+| English | Français | Italiano |
+| Español | Português | 中文 |
+| Deutsch | हिन्दी | العربية |
+| বাংলা | Bahasa Indonesia | Русский |
+| 日本語 | 한국어 | Türkçe |
+| Tiếng Việt | ไทย | |
+
+The redesigned Windows 0.4.1 interface is currently available in English. The same multilingual language selector is planned for a future Windows update.
+
 ## Hardware
 
 - compact ESP32-C3 board with 4 MB of flash storage;
