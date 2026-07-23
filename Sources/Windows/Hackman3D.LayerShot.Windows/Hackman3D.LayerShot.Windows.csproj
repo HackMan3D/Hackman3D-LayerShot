@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Hackman3D LayerShot</AssemblyName>
     <RootNamespace>Hackman3D.LayerShot.Windows</RootNamespace>
-    <Version>0.4.0</Version>
+    <Version>0.4.1</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 </Project>

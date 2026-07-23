@@ -6,8 +6,8 @@ Native Windows application built with .NET 8 WinForms. A self-contained publish 
 
 End users do not need the .NET SDK or Arduino IDE:
 
-- [Windows x64 release](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-Windows-x64-0.4.0.zip)
-- [Windows ARM64 release](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-Windows-ARM64-0.4.0.zip)
+- [Windows x64 release](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.1/Hackman3D-LayerShot-Windows-x64-0.4.1.zip)
+- [Windows ARM64 release](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.1/Hackman3D-LayerShot-Windows-ARM64-0.4.1.zip)
 
 The release packages include `esptool.exe` and the matching firmware binaries. Keep the executable and its `Resources` directory together. Firmware installation is performed from inside Hackman3D LayerShot.
 

@@ -9,8 +9,8 @@ The desktop application installs and configures the device, monitors one or more
 No compilation or Arduino IDE setup is required. Download the application for your computer:
 
 - [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-macOS-0.4.0.zip)
-- [Download for Windows — Intel/AMD x64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-Windows-x64-0.4.0.zip)
-- [Download for Windows — ARM64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-Windows-ARM64-0.4.0.zip)
+- [Download for Windows — Intel/AMD x64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.1/Hackman3D-LayerShot-Windows-x64-0.4.1.zip)
+- [Download for Windows — ARM64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.1/Hackman3D-LayerShot-Windows-ARM64-0.4.1.zip)
 
 The desktop packages include the ESP32 flashing tool and the correct firmware files. Connect the ESP32-C3 by USB and use the installation section inside Hackman3D LayerShot. The application detects the serial port, flashes the firmware, and guides the user through Wi-Fi and printer setup.
 
@@ -67,12 +67,12 @@ open "outputs/Hackman3D LayerShot.app"
 Requirement: .NET 8 SDK.
 
 ```powershell
-dotnet publish .\windows\Hackman3D.LayerShot.Windows\Hackman3D.LayerShot.Windows.csproj `
+dotnet publish .\Sources\Windows\Hackman3D.LayerShot.Windows\Hackman3D.LayerShot.Windows.csproj `
   -c Release -r win-x64 --self-contained true `
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
-See [windows/README.md](windows/README.md) for ARM64 builds and optional tools.
+See [Sources/Windows/README.md](Sources/Windows/README.md) for ARM64 builds and optional tools.
 
 ## Building the firmware
 
