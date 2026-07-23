@@ -21,6 +21,6 @@ if sys.platform == "darwin":
     app = BUNDLE(coll, name="Hackman3D LayerShot.app",
                  icon=str(assets / "Hackman3DLayerShot.icns"),
                  bundle_identifier="com.hackman3d.layershot",
-                 info_plist={"CFBundleShortVersionString":"0.5.0","CFBundleVersion":"0.5.0",
+                 info_plist={"CFBundleShortVersionString":"0.5.1","CFBundleVersion":"0.5.1",
                              "NSLocalNetworkUsageDescription":"LayerShot connects to your printers and ESP32 on the local network.",
                              "NSBluetoothAlwaysUsageDescription":"LayerShot configures the ESP32 Bluetooth camera shutter."})

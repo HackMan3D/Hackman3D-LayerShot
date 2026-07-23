@@ -4,17 +4,17 @@ Hackman3D LayerShot turns an ESP32-C3 into an autonomous Bluetooth camera shutte
 
 The macOS and Windows applications are built from the same Python/PySide6 source. They have the same interface, features, translations and version number. Once configuration has been sent to the ESP32, the desktop application does not need to remain open during a print.
 
-## Download — version 0.5.0
+## Download — version 0.5.1
 
 No compilation or Arduino IDE setup is required:
 
-- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.0/Hackman3D-LayerShot-macOS-0.5.0.zip)
-- [Download for Windows — ARM64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.0/Hackman3D-LayerShot-Windows-0.5.0.zip)
-- [Standalone ESP32-C3 firmware 1.2.0](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.0/Hackman3D-LayerShot-ESP32-C3-Firmware-1.2.0.bin)
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.1/Hackman3D-LayerShot-macOS-0.5.1.zip)
+- [Download for Windows — Intel/AMD x64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.1/Hackman3D-LayerShot-Windows-x64-0.5.1.zip)
+- [Standalone ESP32-C3 firmware 1.2.0](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.1/Hackman3D-LayerShot-ESP32-C3-Firmware-1.2.0.bin)
 
 The application contains the firmware and installs it from the **Installation** page. The standalone image is intended for recovery and advanced use.
 
-> The current Windows package is ARM64 because it was compiled and tested on Windows 11 ARM in Parallels Desktop. The shared source can also be compiled as x64 on an Intel/AMD Windows computer.
+The Windows package is a native 64-bit Intel/AMD build.
 
 ## Features
 
@@ -77,7 +77,7 @@ End users should use the ready-to-run downloads above. Contributors need Python 
 .\build_windows.ps1
 ```
 
-Both scripts package the same files under `src/hackman_layershot` and produce version 0.5.0.
+Both scripts package the same files under `src/hackman_layershot` and produce version 0.5.1.
 
 ## Firmware source
 

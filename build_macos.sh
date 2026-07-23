@@ -3,8 +3,16 @@ set -euo pipefail
 ROOT="${0:A:h}"
 cd "$ROOT"
 PYTHON="${LAYERSHOT_PYTHON:-/Users/eyleck/Documents/Codex/2026-07-19/referenced-chatgpt-conversation-this-is-untrusted/software/.venv-macos/bin/python}"
+dot_clean -m "$ROOT/src/hackman_layershot/assets" 2>/dev/null || true
+xattr -cr "$ROOT/src/hackman_layershot/assets"
 rm -rf build "dist/Hackman3D LayerShot" "dist/Hackman3D LayerShot.app"
 PYTHONPATH="$ROOT/src" "$PYTHON" -m PyInstaller --noconfirm --clean "Hackman3D LayerShot.spec"
+dot_clean -m "$ROOT/dist/Hackman3D LayerShot.app" 2>/dev/null || true
+xattr -cr "$ROOT/dist/Hackman3D LayerShot.app"
 mkdir -p releases
-ditto -c -k --sequesterRsrc --keepParent "dist/Hackman3D LayerShot.app" "releases/Hackman3D-LayerShot-macOS-0.5.0.zip"
-echo "Created releases/Hackman3D-LayerShot-macOS-0.5.0.zip"
+SIGN_DIR="$(mktemp -d /tmp/layershot-sign.XXXXXX)"
+cp -R -X "$ROOT/dist/Hackman3D LayerShot.app" "$SIGN_DIR/Hackman3D LayerShot.app"
+codesign --force --deep --sign - "$SIGN_DIR/Hackman3D LayerShot.app"
+codesign --verify --deep --strict "$SIGN_DIR/Hackman3D LayerShot.app"
+ditto -c -k --sequesterRsrc --keepParent "$SIGN_DIR/Hackman3D LayerShot.app" "releases/Hackman3D-LayerShot-macOS-0.5.1.zip"
+echo "Created releases/Hackman3D-LayerShot-macOS-0.5.1.zip"
