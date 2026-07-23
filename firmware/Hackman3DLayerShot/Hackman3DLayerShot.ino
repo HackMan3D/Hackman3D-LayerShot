@@ -5,36 +5,36 @@
 #include <Preferences.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEHIDDevice.h>
-#include <BLESecurity.h>
-#include <BLE2902.h>
-#if defined(CONFIG_NIMBLE_ENABLED)
-#include <host/ble_store.h>
-#endif
+#include <HijelHID_BLEKeyboard.h>
+#include <Adafruit_NeoPixel.h>
+#include "dashboard.h"
 
-static const char *FIRMWARE_VERSION = "1.2.0";
-static const char *HOSTNAME = "hackmanlayershot";
+static const char *FIRMWARE_VERSION = "1.7.0";
+static const char *HOSTNAME = "hackman-layershot";
 static const char *BLE_NAME = "Hackman3D LayerShot";
 static const char *SETUP_AP = "Hackman3D-LayerShot-Setup";
-static const uint8_t PAIR_BUTTON_PIN = BOOT_PIN;
+static const uint8_t PAIR_BUTTON_PIN = 9;
+static const uint8_t RGB_STATUS_PIN = 10;
+Adafruit_NeoPixel statusLed(1, RGB_STATUS_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel statusLedAlt(1, 8, NEO_GRB + NEO_KHZ800);
+HijelHID_BLEKeyboard bleKeyboard(BLE_NAME, "Hackman3D", 100);
 
 WebServer web(80);
 Preferences preferences;
-BLEHIDDevice *hid = nullptr;
-BLECharacteristic *consumerInput = nullptr;
 bool bleConnected = false;
 bool pairingMode = true;
 bool wifiConnecting = false;
 bool wifiError = false;
 bool otaReady = false;
 uint32_t triggerCount = 0;
+uint32_t commandCount = 0;
+String lastCommand = "startup";
 uint32_t pairingStartedAt = 0;
 uint32_t buttonPressedAt = 0;
 uint32_t shutterFlashUntil = 0;
 uint32_t lastBlinkAt = 0;
 bool blinkOn = false;
+String serialLine;
 String printerHost;
 uint16_t printerPort = 4408;
 uint16_t captureEvery = 1;
@@ -43,19 +43,18 @@ uint16_t stopAfterLayer = 0;
 uint16_t stabilizationMs = 1000;
 bool autonomousEnabled = false;
 int lastPrinterLayer = -1;
+int printerTotalLayers = -1;
+bool printerConnected = false;
+String printerState = "unknown";
+int printerHttpCode = 0;
 uint32_t lastPrinterPoll = 0;
 
-static const uint8_t consumerReportMap[] = {
-  0x05, 0x0C, 0x09, 0x01, 0xA1, 0x01, 0x85, 0x01,
-  0x15, 0x00, 0x25, 0x01, 0x75, 0x01, 0x95, 0x01,
-  0x09, 0xE9, 0x81, 0x02,
-  0x75, 0x07, 0x95, 0x01, 0x81, 0x03, 0xC0
-};
-
 void setRGB(uint8_t red, uint8_t green, uint8_t blue) {
-#ifdef RGB_BUILTIN
-  rgbLedWrite(RGB_BUILTIN, red, green, blue);
-#endif
+  statusLed.setPixelColor(0, statusLed.Color(red, green, blue));
+  statusLed.show();
+  // Some C3-Zero-compatible clones route their onboard pixel to GPIO8.
+  statusLedAlt.setPixelColor(0, statusLedAlt.Color(red, green, blue));
+  statusLedAlt.show();
 }
 
 String jsonEscape(const String &value) {
@@ -77,115 +76,76 @@ void sendJSON(int status, const String &body) {
 void advertise() {
   pairingMode = true;
   pairingStartedAt = millis();
-  BLEDevice::startAdvertising();
-}
-
-class LayerShotServerCallbacks : public BLEServerCallbacks {
-  void onConnect(BLEServer *) override {
-    bleConnected = true;
-    pairingMode = false;
-  }
-  void onDisconnect(BLEServer *) override {
-    bleConnected = false;
-    advertise();
-  }
-};
-
-class LayerShotSecurityCallbacks : public BLESecurityCallbacks {
-  bool onSecurityRequest() override { return true; }
-  uint32_t onPassKeyRequest() override { return 0; }
-  void onPassKeyNotify(uint32_t) override {}
-  bool onConfirmPIN(uint32_t) override { return true; }
-#if defined(CONFIG_NIMBLE_ENABLED)
-  void onAuthenticationComplete(ble_gap_conn_desc *desc) override {
-    bleConnected = desc && desc->sec_state.encrypted;
-    pairingMode = !bleConnected;
-  }
-#elif defined(CONFIG_BLUEDROID_ENABLED)
-  void onAuthenticationComplete(esp_ble_auth_cmpl_t result) override {
-    bleConnected = result.success;
-    pairingMode = !bleConnected;
-  }
-#endif
-};
-
-void startBLE() {
-  BLEDevice::init(BLE_NAME);
-  BLESecurity *security = new BLESecurity();
-  security->setCapability(ESP_IO_CAP_NONE);
-  security->setAuthenticationMode(true, false, true);
-  BLEDevice::setSecurityCallbacks(new LayerShotSecurityCallbacks());
-
-  BLEServer *server = BLEDevice::createServer();
-  server->setCallbacks(new LayerShotServerCallbacks());
-  hid = new BLEHIDDevice(server);
-  hid->manufacturer()->setValue("Hackman3D");
-  hid->pnp(0x02, 0x05AC, 0x0220, 0x0100);
-  hid->hidInfo(0x00, 0x01);
-  hid->reportMap((uint8_t *)consumerReportMap, sizeof(consumerReportMap));
-  consumerInput = hid->inputReport(1);
-  hid->setBatteryLevel(100);
-  hid->startServices();
-
-  BLEAdvertising *advertising = BLEDevice::getAdvertising();
-  advertising->setAppearance(0x03C1);
-  advertising->addServiceUUID(hid->hidService()->getUUID());
-  advertising->setScanResponse(true);
-  advertising->setMinPreferred(0x06);
-  advertising->setMaxPreferred(0x12);
-  advertise();
+  NimBLEDevice::getAdvertising()->start();
 }
 
 bool triggerShutter() {
-  if (!bleConnected || !consumerInput) return false;
-  uint8_t pressed = 0x01;
-  uint8_t released = 0x00;
-  consumerInput->setValue(&pressed, 1);
-  consumerInput->notify();
-  delay(45);
-  consumerInput->setValue(&released, 1);
-  consumerInput->notify();
+  bleConnected = bleKeyboard.isPaired();
+  if (!bleConnected) return false;
+  bleKeyboard.tap(MEDIA_VOLUME_UP, 80, 40);
   triggerCount++;
   shutterFlashUntil = millis() + 350;
   return true;
 }
 
 void clearBluetoothBonds() {
-  if (bleConnected) BLEDevice::getServer()->disconnect(0);
-#if defined(CONFIG_NIMBLE_ENABLED)
-  ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_OUR_SEC, nullptr);
-  ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_PEER_SEC, nullptr);
-  ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_CCCD, nullptr);
-  ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_PEER_DEV_REC, nullptr);
-#endif
+  bleKeyboard.clearBonds();
+  bleConnected = false;
   advertise();
 }
 
+void pollPrinter();
+
 void setupWeb() {
   web.on("/", HTTP_GET, [] {
-    web.send(200, "text/plain; charset=utf-8", "Hackman3D LayerShot");
+    web.send_P(200, "text/html; charset=utf-8", LAYERSHOT_DASHBOARD);
   });
   web.on("/status", HTTP_GET, [] {
     String ip = WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
     String body = "{\"ok\":true,\"name\":\"" + String(BLE_NAME) + "\",\"firmware\":\"" +
       FIRMWARE_VERSION + "\",\"hostname\":\"" + HOSTNAME + ".local\",\"ip\":\"" + ip +
-      "\",\"wifi\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") +
+      "\",\"ssid\":\"" + jsonEscape(WiFi.SSID()) + "\",\"rssi\":" + String(WiFi.RSSI()) +
+      ",\"wifi\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") +
       ",\"bluetooth\":" + String(bleConnected ? "true" : "false") +
       ",\"pairing\":" + String(pairingMode ? "true" : "false") +
       ",\"autonomous\":" + String(autonomousEnabled ? "true" : "false") +
       ",\"printer\":\"" + jsonEscape(printerHost) + "\"" +
+      ",\"printer_port\":" + String(printerPort) +
+      ",\"printer_connected\":" + String(printerConnected ? "true" : "false") +
+      ",\"printer_state\":\"" + jsonEscape(printerState) + "\"" +
+      ",\"printer_http_code\":" + String(printerHttpCode) +
+      ",\"current_layer\":" + String(lastPrinterLayer) +
+      ",\"total_layers\":" + String(printerTotalLayers) +
+      ",\"commands\":" + String(commandCount) +
+      ",\"last_command\":\"" + jsonEscape(lastCommand) + "\"" +
       ",\"triggers\":" + String(triggerCount) + "}";
     sendJSON(200, body);
   });
   web.on("/trigger", HTTP_POST, [] {
-    if (triggerShutter()) sendJSON(200, "{\"ok\":true,\"triggered\":true}");
-    else sendJSON(409, "{\"ok\":false,\"error\":\"iphone_not_connected\"}");
+    commandCount++;
+    if (triggerShutter()) {
+      lastCommand = "shutter_sent";
+      sendJSON(200, "{\"ok\":true,\"triggered\":true}");
+    } else {
+      lastCommand = "shutter_failed";
+      sendJSON(409, "{\"ok\":false,\"error\":\"iphone_not_connected\"}");
+    }
+  });
+  web.on("/led-test", HTTP_POST, [] {
+    commandCount++; lastCommand = "led_test";
+    setRGB(255, 0, 0); delay(450);
+    setRGB(0, 255, 0); delay(450);
+    setRGB(0, 0, 255); delay(450);
+    setRGB(255, 0, 180); delay(450);
+    sendJSON(200, "{\"ok\":true,\"led\":true}");
   });
   web.on("/pair", HTTP_POST, [] {
+    commandCount++; lastCommand = "pairing_enabled";
     advertise();
     sendJSON(200, "{\"ok\":true,\"pairing\":true}");
   });
   web.on("/reset-bonds", HTTP_POST, [] {
+    commandCount++; lastCommand = "pairing_erased";
     clearBluetoothBonds();
     sendJSON(200, "{\"ok\":true,\"bondsCleared\":true}");
   });
@@ -230,6 +190,12 @@ void setupWeb() {
     lastPrinterLayer = -1;
     sendJSON(200, "{\"ok\":true,\"autonomous\":true}");
   });
+  web.on("/printer-test", HTTP_POST, [] {
+    lastPrinterPoll = 0;
+    pollPrinter();
+    if (printerConnected) sendJSON(200, "{\"ok\":true,\"printer\":true}");
+    else sendJSON(503, "{\"ok\":false,\"error\":\"printer_not_found\"}");
+  });
   web.on("/autonomous-stop", HTTP_POST, [] {
     autonomousEnabled = false;
     preferences.begin("layershot", false); preferences.putBool("autonomous", false); preferences.end();
@@ -239,6 +205,63 @@ void setupWeb() {
   web.begin();
 }
 
+String decodeHex(const String &value) {
+  String decoded;
+  decoded.reserve(value.length() / 2);
+  for (size_t i = 0; i + 1 < value.length(); i += 2) {
+    char pair[3] = {value[i], value[i + 1], 0};
+    decoded += (char)strtoul(pair, nullptr, 16);
+  }
+  return decoded;
+}
+
+String serialField(const String &line, int field) {
+  int start = 0;
+  for (int current = 0; current < field; current++) {
+    start = line.indexOf('\t', start);
+    if (start < 0) return "";
+    start++;
+  }
+  int end = line.indexOf('\t', start);
+  return end < 0 ? line.substring(start) : line.substring(start, end);
+}
+
+void handleSerialProvisioning() {
+  while (Serial.available()) {
+    char incoming = (char)Serial.read();
+    if (incoming == '\r') continue;
+    if (incoming != '\n') {
+      if (serialLine.length() < 1400) serialLine += incoming;
+      continue;
+    }
+    if (serialLine.startsWith("LAYERSHOT_CONFIG\t")) {
+      String newSsid = decodeHex(serialField(serialLine, 1));
+      String newPassword = decodeHex(serialField(serialLine, 2));
+      String newPrinter = serialField(serialLine, 3);
+      if (!newSsid.isEmpty() && !newPrinter.isEmpty()) {
+        preferences.begin("layershot", false);
+        preferences.putString("ssid", newSsid);
+        preferences.putString("password", newPassword);
+        preferences.putString("printer", newPrinter);
+        preferences.putUShort("port", (uint16_t)max(1L, serialField(serialLine, 4).toInt()));
+        preferences.putUShort("every", (uint16_t)max(1L, serialField(serialLine, 5).toInt()));
+        preferences.putUShort("skip", (uint16_t)max(0L, serialField(serialLine, 6).toInt()));
+        preferences.putUShort("stop", (uint16_t)max(0L, serialField(serialLine, 7).toInt()));
+        preferences.putUShort("delay", (uint16_t)max(0L, serialField(serialLine, 8).toInt()));
+        preferences.putBool("autonomous", true);
+        preferences.end();
+        Serial.println("LAYERSHOT_CONFIG_OK");
+        Serial.flush();
+        delay(300);
+        ESP.restart();
+      } else {
+        Serial.println("LAYERSHOT_CONFIG_ERROR");
+      }
+    }
+    serialLine = "";
+  }
+}
+
 int jsonIntegerAfter(const String &body, const String &key) {
   int position = body.indexOf("\"" + key + "\"");
   if (position < 0) return -1;
@@ -246,6 +269,7 @@ int jsonIntegerAfter(const String &body, const String &key) {
   if (position < 0) return -1;
   position++;
   while (position < (int)body.length() && (body[position] == ' ' || body[position] == '"')) position++;
+  if (body.substring(position, position + 4) == "null") return -1;
   return body.substring(position).toInt();
 }
 
@@ -258,22 +282,38 @@ void pollPrinter() {
   http.setTimeout(3500);
   if (!http.begin(url)) return;
   int code = http.GET();
+  printerHttpCode = code;
   if (code == 200) {
     String body = http.getString();
+    printerConnected = true;
     bool printing = body.indexOf("\"state\":\"printing\"") >= 0 || body.indexOf("\"state\": \"printing\"") >= 0;
+    bool virtualSdActive = body.indexOf("\"is_active\":true") >= 0 || body.indexOf("\"is_active\": true") >= 0;
+    bool layerMonitoringActive = printing || virtualSdActive;
+    if (layerMonitoringActive) printerState = "printing";
+    else if (body.indexOf("\"state\":\"paused\"") >= 0 || body.indexOf("\"state\": \"paused\"") >= 0) printerState = "paused";
+    else if (body.indexOf("\"state\":\"complete\"") >= 0 || body.indexOf("\"state\": \"complete\"") >= 0) printerState = "complete";
+    else if (body.indexOf("\"state\":\"cancelled\"") >= 0 || body.indexOf("\"state\": \"cancelled\"") >= 0) printerState = "cancelled";
+    else if (body.indexOf("\"state\":\"standby\"") >= 0 || body.indexOf("\"state\": \"standby\"") >= 0) printerState = "standby";
+    else printerState = "ready";
     int currentLayer = jsonIntegerAfter(body, "current_layer");
     if (currentLayer < 0) currentLayer = jsonIntegerAfter(body, "layer");
-    if (printing && currentLayer >= 0 && currentLayer != lastPrinterLayer) {
-      if (lastPrinterLayer >= 0 && currentLayer > skipLayers &&
+    int totalLayers = jsonIntegerAfter(body, "total_layer");
+    if (totalLayers < 0) totalLayers = jsonIntegerAfter(body, "layer_count");
+    if (totalLayers >= 0) printerTotalLayers = totalLayers;
+    if (layerMonitoringActive && currentLayer >= 0 && currentLayer != lastPrinterLayer) {
+      if (lastPrinterLayer >= 0 && currentLayer > lastPrinterLayer && currentLayer > skipLayers &&
           (currentLayer - skipLayers) % max(1, (int)captureEvery) == 0 &&
           (stopAfterLayer == 0 || currentLayer <= stopAfterLayer)) {
         delay(stabilizationMs);
         triggerShutter();
       }
       lastPrinterLayer = currentLayer;
-    } else if (!printing) {
+    } else if (!layerMonitoringActive) {
       lastPrinterLayer = -1;
     }
+  } else {
+    printerConnected = false;
+    printerState = "offline";
   }
   http.end();
 }
@@ -291,6 +331,10 @@ void connectWiFi() {
     WiFi.begin(ssid.c_str(), password.c_str());
     uint32_t started = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - started < 18000) {
+      // The desktop app provisions the freshly flashed board over USB.
+      // Continue consuming serial data while an older Wi-Fi profile is timing
+      // out, otherwise opening the port repeatedly can reset the C3 forever.
+      handleSerialProvisioning();
       setRGB(255, 65, 0);
       delay(150);
       setRGB(0, 0, 0);
@@ -320,28 +364,41 @@ void updateButton() {
     buttonPressedAt = 0;
     if (duration >= 10000) clearBluetoothBonds();
     else if (duration >= 3000) advertise();
+    else if (duration >= 50) triggerShutter();
   }
 }
 
 void updateLED() {
   uint32_t now = millis();
-  if (shutterFlashUntil > now) { setRGB(0, 255, 35); return; }
-  if (wifiConnecting) { setRGB(255, 65, 0); return; }
-  if (wifiError && WiFi.status() != WL_CONNECTED) { setRGB(255, 0, 0); return; }
-  if (bleConnected) { setRGB(0, 80, 255); return; }
+  if (shutterFlashUntil > now) { setRGB(255, 0, 180); return; }
+  if (pairingMode && !bleConnected && now - pairingStartedAt > 60000) {
+    pairingMode = false;
+  }
   if (pairingMode) {
     if (now - lastBlinkAt > 450) { lastBlinkAt = now; blinkOn = !blinkOn; }
     setRGB(0, 55, blinkOn ? 255 : 0);
     return;
   }
-  setRGB(0, 0, 0);
+  if (bleConnected) { setRGB(0, 220, 45); return; }
+  setRGB(255, 0, 0);
 }
 
 void setup() {
   Serial.begin(115200);
   pinMode(PAIR_BUTTON_PIN, INPUT_PULLUP);
-  setRGB(0, 0, 0);
-  startBLE();
+  statusLed.begin();
+  statusLed.setBrightness(48);
+  statusLed.clear();
+  statusLed.show();
+  statusLedAlt.begin();
+  statusLedAlt.setBrightness(48);
+  statusLedAlt.clear();
+  statusLedAlt.show();
+  setRGB(255, 0, 0);
+  bleKeyboard.setSecurityMode(BLEKeyboardSecurity::JustWorks);
+  bleKeyboard.setTapDelay(80);
+  bleKeyboard.setKeyGap(40);
+  bleKeyboard.begin();
   preferences.begin("layershot", true);
   printerHost = preferences.getString("printer", "");
   printerPort = preferences.getUShort("port", 4408);
@@ -357,6 +414,9 @@ void setup() {
 }
 
 void loop() {
+  bleConnected = bleKeyboard.isPaired();
+  if (bleConnected) pairingMode = false;
+  handleSerialProvisioning();
   web.handleClient();
   if (otaReady) ArduinoOTA.handle();
   updateButton();
