@@ -2,6 +2,12 @@
 .build/
 work/
 outputs/
+build/
+dist/
+releases/
+*.egg-info/
+__pycache__/
+.venv*/
 
 # Swift / Xcode
 DerivedData/
@@ -28,4 +34,3 @@ firmware/**/build/
 .env
 .env.*
 !.env.example
-

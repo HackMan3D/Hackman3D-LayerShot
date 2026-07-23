@@ -14,8 +14,8 @@
 #include <host/ble_store.h>
 #endif
 
-static const char *FIRMWARE_VERSION = "1.1.0";
-static const char *HOSTNAME = "hackman-layershot";
+static const char *FIRMWARE_VERSION = "1.2.0";
+static const char *HOSTNAME = "hackmanlayershot";
 static const char *BLE_NAME = "Hackman3D LayerShot";
 static const char *SETUP_AP = "Hackman3D-LayerShot-Setup";
 static const uint8_t PAIR_BUTTON_PIN = BOOT_PIN;

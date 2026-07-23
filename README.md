@@ -1,36 +1,38 @@
 # Hackman3D LayerShot
 
-Hackman3D LayerShot turns an ESP32-C3 into an autonomous Bluetooth camera shutter for creating 3D-printing timelapses with the iPhone Camera app.
+Hackman3D LayerShot turns an ESP32-C3 into an autonomous Bluetooth camera shutter for 3D-printing timelapses with the iPhone Camera app.
 
-The desktop application installs and configures the device, monitors one or more Creality/Klipper printers, and assembles the captured photos. Once the settings have been sent to the ESP32, the desktop application does not need to remain open during a print.
+The macOS and Windows applications are built from the same Python/PySide6 source. They have the same interface, features, translations and version number. Once configuration has been sent to the ESP32, the desktop application does not need to remain open during a print.
 
-## Download
+## Download — version 0.5.0
 
-No compilation or Arduino IDE setup is required. Download the application for your computer:
+No compilation or Arduino IDE setup is required:
 
-- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-macOS-0.4.0.zip)
-- [Download for Windows — Intel/AMD x64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.1/Hackman3D-LayerShot-Windows-x64-0.4.1.zip)
-- [Download for Windows — ARM64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.1/Hackman3D-LayerShot-Windows-ARM64-0.4.1.zip)
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.0/Hackman3D-LayerShot-macOS-0.5.0.zip)
+- [Download for Windows — ARM64](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.0/Hackman3D-LayerShot-Windows-0.5.0.zip)
+- [Standalone ESP32-C3 firmware 1.2.0](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.0/Hackman3D-LayerShot-ESP32-C3-Firmware-1.2.0.bin)
 
-The desktop packages include the ESP32 flashing tool and the correct firmware files. Connect the ESP32-C3 by USB and use the installation section inside Hackman3D LayerShot. The application detects the serial port, flashes the firmware, and guides the user through Wi-Fi and printer setup.
+The application contains the firmware and installs it from the **Installation** page. The standalone image is intended for recovery and advanced use.
 
-The [standalone ESP32-C3 firmware image](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.4.0/Hackman3D-LayerShot-ESP32-C3-Firmware-1.1.0.bin) is also available for recovery and advanced use, but normal users should install and update the firmware through the desktop application.
+> The current Windows package is ARM64 because it was compiled and tested on Windows 11 ARM in Parallels Desktop. The shared source can also be compiled as x64 on an Intel/AMD Windows computer.
 
 ## Features
 
+- strictly identical Qt interface on macOS and Windows;
 - iPhone camera shutter control through Bluetooth HID (`Volume +`);
-- Bluetooth pairing and bond removal with the ESP32 BOOT button;
-- autonomous operation with layer-change detection through Moonraker;
-- support for Creality K2, K1, Ender, CR, and SPARKX i7 printer families;
-- multi-printer dashboard with printer status and camera access when available;
-- Wi-Fi, printer, capture interval, stabilization, and layer-limit settings;
-- timelapse generation and framing options;
-- macOS and Windows desktop applications plus ESP32-C3 firmware;
-- multilingual macOS interface.
+- Bluetooth pairing mode controlled from the app or the ESP32 BOOT button;
+- autonomous layer-change detection through Moonraker;
+- support for K2, K1, Ender-3 V3, Creality Hi and SparkX i7 families;
+- multi-printer dashboard with independent printer cards;
+- camera access for printers exposing a camera page;
+- Wi-Fi detection and retrieval of a known network password when permitted by the operating system;
+- firmware installation and ESP32 configuration from the desktop app;
+- timelapse import, frame-rate, aspect-ratio and framing controls;
+- permanent HackMan3D support and social header.
 
 ## Supported languages
 
-The macOS application currently includes the following interface languages:
+The same language selector is included on macOS and Windows:
 
 | | | |
 |---|---|---|
@@ -41,66 +43,50 @@ The macOS application currently includes the following interface languages:
 | 日本語 | 한국어 | Türkçe |
 | Tiếng Việt | ไทย | |
 
-The redesigned Windows 0.4.1 interface is currently available in English. The same multilingual language selector is planned for a future Windows update.
+English and French are currently fully translated. Other languages use the English text where a translation is not yet available.
 
-## Hardware
+## Hardware and setup
 
-- compact ESP32-C3 board with 4 MB of flash storage;
-- an iPhone compatible with Bluetooth camera remotes;
-- a printer available on the same local network and exposing the Moonraker API.
+- ESP32-C3 board with 4 MB flash;
+- iPhone compatible with Bluetooth camera remotes;
+- printer on the same local network with a Moonraker API.
 
-The firmware uses `hackman-layershot.local` as its network name and `Hackman3D LayerShot` as its Bluetooth name.
+1. Open Hackman3D LayerShot.
+2. Connect the ESP32-C3 with a USB data cable.
+3. Open **Installation**, select its USB port, then choose **Install firmware**.
+4. Add the printer and enter Wi-Fi details.
+5. Send the configuration to the ESP32.
+6. Enable pairing and select `Hackman3D LayerShot` in iPhone **Settings > Bluetooth**.
+7. Open the iPhone Camera app and start the print.
 
-## Installation
+The ESP32 is available as `hackmanlayershot.local`. A short BOOT-button press enables pairing; holding BOOT for at least ten seconds removes saved Bluetooth bonds.
 
-Everything required for normal setup is handled by the desktop application:
+## Build from source
 
-1. Download and open Hackman3D LayerShot for macOS or Windows.
-2. Connect the ESP32-C3 to the computer by USB.
-3. In the application, detect the USB port and select **Install firmware**.
-4. Follow the application instructions to configure Wi-Fi and the printer.
-5. Hold BOOT for approximately three seconds, then select `Hackman3D LayerShot` under Settings > Bluetooth on the iPhone.
-6. Open the Camera app and start the print.
-
-A short BOOT-button press enables pairing. Holding the button for at least ten seconds removes previously paired Bluetooth devices.
-
-## Building from source
-
-The following instructions are for contributors only. End users should download the ready-to-run applications above.
+End users should use the ready-to-run downloads above. Contributors need Python 3.11 or later.
 
 ### macOS
 
-Requirements: macOS and Swift.
-
 ```sh
-zsh scripts/build-app.sh
-open "outputs/Hackman3D LayerShot.app"
+./build_macos.sh
 ```
 
 ### Windows
 
-Requirement: .NET 8 SDK.
-
 ```powershell
-dotnet publish .\Sources\Windows\Hackman3D.LayerShot.Windows\Hackman3D.LayerShot.Windows.csproj `
-  -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+.\build_windows.ps1
 ```
 
-See [Sources/Windows/README.md](Sources/Windows/README.md) for ARM64 builds and optional tools.
+Both scripts package the same files under `src/hackman_layershot` and produce version 0.5.0.
 
-## Building the firmware
+## Firmware source
 
-Open `firmware/Hackman3DLayerShot/Hackman3DLayerShot.ino` in Arduino IDE with the Espressif ESP32 core installed, then select the board matching the ESP32-C3 hardware.
+The Arduino source is in `firmware/Hackman3DLayerShot`. It targets an ESP32-C3 with the **Huge APP** partition scheme. Wi-Fi credentials are never included in the firmware image; they are stored locally in the ESP32 non-volatile memory during setup.
 
-The firmware does not contain Wi-Fi credentials. Settings entered by the user are stored locally in the ESP32 non-volatile memory.
+## Support
 
-## Support the project
+LayerShot is provided free of charge. Donations, feedback and follows on HackMan3D social channels are welcome through the permanent application header.
 
-This software is provided free of charge. Donations, feedback, and follows on Hackman3D social channels are always welcome through the permanent application header.
+Created, designed and coded by HackMan3D.
 
-Created, designed, and coded by Hackman3D.
-
-## Project status
-
-Development release. This repository is currently private, and no redistribution license is granted until a `LICENSE` file is added.
+This repository is currently private. No redistribution license is granted until a `LICENSE` file is added.
