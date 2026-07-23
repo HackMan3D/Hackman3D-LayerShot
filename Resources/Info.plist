@@ -9,15 +9,15 @@
 	<key>CFBundleIconFile</key>
 	<string>Hackman3DLayerShot.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.hackman3d.layershot</string>
+	<string>com.hackman3d.layershot.desktop</string>
 	<key>CFBundleName</key>
 	<string>Hackman3D LayerShot</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.4.0</string>
+	<string>0.5.2</string>
 	<key>CFBundleVersion</key>
-	<string>14</string>
+	<string>0.5.2</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSAppTransportSecurity</key>
@@ -33,8 +33,8 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>LayerShot communique avec votre imprimante Creality et votre boîtier ESP32 sur le réseau local.</string>
+	<string>Hackman3D LayerShot connects to your 3D printers and ESP32 on your local network.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>LayerShot utilise la localisation uniquement pour afficher les noms des réseaux Wi-Fi proches lors de la configuration de l’ESP32.</string>
+	<string>Hackman3D LayerShot uses location only to list nearby Wi-Fi networks while configuring the ESP32.</string>
 </dict>
 </plist>

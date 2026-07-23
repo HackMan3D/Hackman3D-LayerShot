@@ -14,7 +14,8 @@ def main():
     app.setQuitOnLastWindowClosed(True)
     icon = asset_path("Hackman3DLayerShot.png")
     if icon.exists(): app.setWindowIcon(QIcon(str(icon)))
-    app.setStyleSheet(APP_STYLE)
+    app.setStyleSheet(APP_STYLE.replace(
+        "__DROPDOWN_ARROW__", str(asset_path("dropdown_arrow.svg"))))
     window = MainWindow()
     window.show()
     raise SystemExit(app.exec())
