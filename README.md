@@ -7,7 +7,7 @@ and triggers an iPhone, an Android phone or a compatible DJI camera.
 No iPhone application is required. Once the ESP32 has been configured, the Mac
 or PC application can be closed during the entire print.
 
-![LayerShot camera and firmware selection on macOS](docs/images/installation-camera-selection.png)
+
 
 ## Download — version 0.6.0
 
