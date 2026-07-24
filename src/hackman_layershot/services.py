@@ -169,9 +169,15 @@ def _local_ipv4_networks():
 def _open_moonraker_port(host):
     for port in (4408, 7125, 80):
         try:
+            if platform.system() == "Darwin":
+                response = request_json(
+                    f"http://{host}:{port}/server/info", timeout=.8)
+                if isinstance(response.get("result"), dict):
+                    return port
+                continue
             with socket.create_connection((host, port), timeout=.18):
                 return port
-        except OSError:
+        except Exception:
             continue
     return None
 
@@ -260,8 +266,22 @@ def _describe_moonraker(host, port):
         "components": components,
     }
 
-def discover_printers():
-    hosts = []
+def discover_printers(seed_printers=()):
+    seed_by_host = {}
+    for seed in seed_printers:
+        if isinstance(seed, dict):
+            host = str(seed.get("host", "")).strip()
+            if host:
+                seed_by_host[host] = seed
+        else:
+            host = str(seed).strip()
+            if host:
+                seed_by_host[host] = {}
+    hosts = list(seed_by_host)
+    # Saved addresses and the ARP table are especially important on macOS:
+    # unsigned/ad-hoc applications can be denied raw subnet sockets even though
+    # the system-network fallback used by request_json remains available.
+    hosts.extend(_arp_addresses())
     for network in _local_ipv4_networks():
         hosts.extend(str(host) for host in network.hosts())
     hosts = list(dict.fromkeys(hosts))
@@ -279,7 +299,17 @@ def discover_printers():
         futures = [executor.submit(_describe_moonraker, host, port) for host, port in found]
         for future in concurrent.futures.as_completed(futures):
             try:
-                printers.append(future.result())
+                printer = future.result()
+                saved = seed_by_host.get(printer["host"], {})
+                if saved:
+                    saved_model = saved.get("model")
+                    if saved_model and (
+                            printer["model"] == "Other Moonraker / Klipper"
+                            or (printer["model"] == "K2" and saved_model == "K2 Plus")):
+                        printer["model"] = saved_model
+                    if saved.get("name"):
+                        printer["name"] = saved["name"]
+                printers.append(printer)
             except Exception:
                 pass
     return sorted(printers, key=lambda printer: tuple(int(x) for x in printer["host"].split(".")))

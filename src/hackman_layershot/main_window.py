@@ -451,7 +451,13 @@ class MainWindow(QMainWindow):
         self.discovered_printers.clear()
         self.discovered_printers.addItem(self.T("scanning_network"), None)
         self.test_result.setText(self.T("scanning_network"))
-        self.run(discover_printers, (), self.printers_discovered, self.printer_scan_failed)
+        seeds = list(self.printers)
+        typed_host = self.p_host.text().strip()
+        if typed_host:
+            seeds.append({"host": typed_host})
+        self.run(
+            discover_printers, (tuple(seeds),),
+            self.printers_discovered, self.printer_scan_failed)
 
     def printers_discovered(self, printers):
         self.discovery_button.setEnabled(True)
