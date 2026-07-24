@@ -679,6 +679,7 @@ class MainWindow(QMainWindow):
             printer_status(printer["host"], printer["port"])
             import serial
             esptool_executable = asset_path("esptool.exe")
+            mac_esptool_executable = asset_path("esptool-macos")
             esptool_arguments = [
                 "--chip", "esp32c3", "--port", port,
                 "--before", "default-reset", "--after", "hard-reset",
@@ -690,12 +691,12 @@ class MainWindow(QMainWindow):
                     [str(esptool_executable), *esptool_arguments],
                     check=True, capture_output=True, text=True,
                     **hidden_subprocess_kwargs())
-            elif platform.system() == "Darwin" and getattr(sys, "frozen", False):
-                # Run the bundled flasher outside the Qt process. esptool can
-                # otherwise hold Python's GIL long enough for macOS to show the
-                # application as an unresponsive white window.
+            elif platform.system() == "Darwin" and mac_esptool_executable.exists():
+                # This is a separate console-only helper, not the LayerShot
+                # application executable, so macOS cannot create a second
+                # blank Qt application window while the board is flashed.
                 subprocess.run(
-                    [sys.executable, "--esptool-helper", *esptool_arguments],
+                    [str(mac_esptool_executable), *esptool_arguments],
                     check=True, capture_output=True, text=True)
             else:
                 import esptool
