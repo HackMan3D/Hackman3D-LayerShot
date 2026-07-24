@@ -252,6 +252,8 @@ class MainWindow(QMainWindow):
         er.addWidget(self.install_button); er.addStretch()
         e.layout().addLayout(er); self.flash_progress = QProgressBar(); self.flash_progress.setValue(0)
         e.layout().addWidget(self.flash_progress)
+        self.flash_status = self.label("", "subtitle")
+        e.layout().addWidget(self.flash_status)
         e.layout().addWidget(self.label(self.T("tip"), "good")); lay.addWidget(e)
         pairing = card(); pairing.layout().addWidget(self.label(self.T("pairing_step"), "section"))
         self.setup_pairing_guide = self.label("", "supportCopy")
@@ -677,6 +679,7 @@ class MainWindow(QMainWindow):
         self._flash_in_progress = True
         self.install_button.setEnabled(False)
         self.flash_progress.setRange(0,0)
+        self.flash_status.setText(self.T("flash") + "…")
         printer=self.printers[0]
         def task():
             # Do not touch the ESP until the selected printer has answered.
@@ -786,12 +789,17 @@ class MainWindow(QMainWindow):
         def flash_done(_):
             finish_flash()
             self.flash_progress.setValue(100)
-            QMessageBox.information(
-                self, "LayerShot",
+            self.flash_status.setObjectName("good")
+            self.flash_status.setText(
                 "Firmware and settings installed. The ESP32 is connecting to Wi-Fi.")
+            self.flash_status.style().unpolish(self.flash_status)
+            self.flash_status.style().polish(self.flash_status)
         def flash_failed(error):
             finish_flash()
-            QMessageBox.warning(self, "LayerShot", error)
+            self.flash_status.setObjectName("error")
+            self.flash_status.setText(error)
+            self.flash_status.style().unpolish(self.flash_status)
+            self.flash_status.style().polish(self.flash_status)
         self.run(task, done=flash_done, failed=flash_failed)
 
     def configure_esp(self):
