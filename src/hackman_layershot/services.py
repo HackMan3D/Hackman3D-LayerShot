@@ -354,14 +354,32 @@ def _esp_base(host):
     cache_key = hostname.lower()
     cached = _esp_address_cache.get(cache_key)
     candidates = [cached] if cached else []
+    if platform.system() == "Darwin":
+        for alias in (hostname, "hackman-layershot.local", "espressif.lan"):
+            try:
+                cache_output = subprocess.check_output(
+                    ["/usr/bin/dscacheutil", "-q", "host", "-a", "name", alias],
+                    text=True, stderr=subprocess.DEVNULL, timeout=3)
+                candidates.extend(re.findall(
+                    r"ip_address:\s*(\d+(?:\.\d+){3})", cache_output))
+            except Exception:
+                pass
+    # The ad-hoc macOS network helper can reach local IP addresses but may not
+    # inherit multicast-DNS resolution. Resolve .local in the main application
+    # process first, then give the helper the resulting numeric address.
+    for alias in (hostname, "hackman-layershot.local"):
+        try:
+            resolved = socket.gethostbyname(alias)
+            if resolved:
+                candidates.append(resolved)
+        except OSError:
+            pass
     candidates.append(hostname)
     # DHCP can change the address remembered by the desktop app. Always fall
     # back to the LayerShot host aliases and the current ARP table, even when
     # the saved value was an old numeric address.
     candidates.extend([
         "hackman-layershot.local",
-        "hackman-layershot-001.lan",
-        "hackman-layershot.lan",
     ])
     candidates.extend(_arp_addresses())
     for candidate in dict.fromkeys(x for x in candidates if x):

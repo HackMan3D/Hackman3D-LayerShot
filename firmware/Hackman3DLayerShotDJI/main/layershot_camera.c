@@ -18,6 +18,7 @@
 #include "command_logic.h"
 #include "status_logic.h"
 #include "enums_logic.h"
+#include "layershot_led.h"
 
 static const char *TAG = "LAYERSHOT_DJI";
 static SemaphoreHandle_t camera_lock;
@@ -138,11 +139,14 @@ bool layershot_camera_trigger(void) {
     if (response != NULL) {
         bool accepted = response->ret_code == 0;
         free(response);
+        if (accepted) layershot_led_shutter_flash();
         return accepted;
     }
     // The DJI shutter command uses an optional response. A protocol-connected
     // camera may capture successfully without sending that acknowledgement.
-    return connect_logic_get_state() == PROTOCOL_CONNECTED;
+    bool sent = connect_logic_get_state() == PROTOCOL_CONNECTED;
+    if (sent) layershot_led_shutter_flash();
+    return sent;
 }
 
 bool layershot_camera_is_connected(void) {

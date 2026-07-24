@@ -16,6 +16,7 @@
 #include "nvs.h"
 
 #include "layershot_camera.h"
+#include "layershot_led.h"
 
 static layershot_config_t config = {
     .printer_port = 4408, .every_layers = 1, .delay_ms = 800,
@@ -38,10 +39,13 @@ static const char dashboard[] =
 "</style></head><body><main><h1>Hackman3D LayerShot</h1><div class=card><h2>DJI camera</h2>"
 "<p id=cam>Loading…</p><p>Put the DJI camera in Photo mode. Start pairing here, then accept the request on the camera.</p>"
 "<button onclick=go('/pair')>Pair / reconnect</button><button onclick=go('/trigger')>Test shutter</button>"
-"<button class=danger onclick=go('/reset-bonds')>Forget camera</button></div><div class=card><h2>Printer</h2>"
+"<button onclick=go('/led-test')>Test LED</button>"
+"<button class=danger onclick=go('/reset-bonds')>Forget camera</button><p id=action class=pill>Ready.</p>"
+"</div><div class=card><h2>Printer</h2>"
 "<p id=printer>Loading…</p><p>Layer: <b id=layer>—</b></p></div><div class=card><h2>Network</h2>"
 "<p id=net>Loading…</p><p>Local address: <b>hackman-layershot.local</b></p></div>"
-"<script>async function go(p){let r=await fetch(p,{method:'POST'});alert(await r.text());setTimeout(load,500)}"
+"<script>async function go(p){action.textContent='Command sent…';try{let r=await fetch(p,{method:'POST'});"
+"action.textContent=(r.ok?'✓ ':'✕ ')+await r.text()}catch(e){action.textContent='✕ ESP did not answer.'}setTimeout(load,500)}"
 "async function load(){try{let s=await(await fetch('/status')).json();cam.textContent=s.camera_name+' — '+s.bluetooth_state;"
 "printer.textContent=s.printer+' — '+s.printer_state;layer.textContent=s.current_layer+' / '+s.total_layers;"
 "net.textContent=s.wifi_state+' — '+s.ip}catch(e){}}load();setInterval(load,2000)</script></main></body></html>";
@@ -115,6 +119,10 @@ static esp_err_t forget_handler(httpd_req_t *r) {
 static esp_err_t trigger_handler(httpd_req_t *r) {
     return text_reply(r, layershot_camera_trigger() ? "Shutter command sent." : "DJI camera is not connected.");
 }
+static esp_err_t led_test_handler(httpd_req_t *r) {
+    layershot_led_test();
+    return text_reply(r, "LED test completed.");
+}
 
 static void start_server(void) {
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
@@ -125,6 +133,7 @@ static void start_server(void) {
         {.uri="/pair",.method=HTTP_POST,.handler=pair_handler},
         {.uri="/reset-bonds",.method=HTTP_POST,.handler=forget_handler},
         {.uri="/trigger",.method=HTTP_POST,.handler=trigger_handler},
+        {.uri="/led-test",.method=HTTP_POST,.handler=led_test_handler},
     };
     for (size_t i=0; i<sizeof(routes)/sizeof(routes[0]); i++) httpd_register_uri_handler(server, &routes[i]);
 }

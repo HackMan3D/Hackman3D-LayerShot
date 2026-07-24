@@ -220,8 +220,13 @@ class MainWindow(QMainWindow):
         self.password_visibility.setToolTip(self.T("show_password"))
         password_row.addWidget(self.password_visibility)
         password_row.addWidget(button(self.T("use_saved_password"), self.load_known_wifi_password))
-        self.esp_host = QLineEdit(
-            self.settings.value("esp_host", "hackman-layershot.local"))
+        saved_esp_host = str(
+            self.settings.value("esp_host", "hackman-layershot.local")).strip()
+        if saved_esp_host in (
+                "hackman-layershot.lan", "hackman-layershot-001.lan"):
+            saved_esp_host = "hackman-layershot.local"
+            self.settings.setValue("esp_host", saved_esp_host)
+        self.esp_host = QLineEdit(saved_esp_host)
         wf.addRow(self.T("ssid"),self.ssid); wf.addRow(self.T("password"),password_row); wf.addRow(self.T("esp_address"),self.esp_host)
         w.layout().addLayout(wf)
         w.layout().addWidget(self.label(self.T("wifi_24_tip"), "good"))
@@ -842,8 +847,18 @@ class MainWindow(QMainWindow):
             lambda _: QMessageBox.information(
                 self, "LayerShot", self.T("pairing_deleted")))
     def open_esp_dashboard(self):
-        host=self.esp_host.text().strip()
-        self.open_url(host if "://" in host else "http://"+host)
+        host = self.esp_host.text().strip()
+        if host in ("hackman-layershot.lan", "hackman-layershot-001.lan"):
+            host = "hackman-layershot.local"
+        def open_resolved(status):
+            resolved = status.get("_resolved_address") or host
+            self.esp_host.setText(resolved)
+            self.settings.setValue("esp_host", resolved)
+            self.open_url(
+                resolved if "://" in resolved else "http://" + resolved)
+        self.run(
+            esp_status, (host,), open_resolved,
+            lambda _error: self.open_url("http://hackman-layershot.local"))
     def test_led(self):
         self.run(esp_post,(self.esp_host.text().strip(),"led-test",{}),lambda _:QMessageBox.information(self,"LayerShot","LED test completed."))
     def test_shutter(self): self.run(esp_post,(self.esp_host.text().strip(),"trigger",{}),lambda _:QMessageBox.information(self,"LayerShot","Shutter command sent."))

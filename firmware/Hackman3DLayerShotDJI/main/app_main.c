@@ -9,19 +9,45 @@
 #include "freertos/task.h"
 
 #include "layershot_camera.h"
+#include "layershot_led.h"
 #include "layershot_network.h"
 
 #define BOOT_BUTTON GPIO_NUM_9
 #define RGB_LED GPIO_NUM_10
+#define RGB_LED_ALT GPIO_NUM_8
 
 static led_strip_handle_t led;
+static led_strip_handle_t led_alt;
+static volatile int shutter_flash_ticks;
+static volatile int led_test_ticks;
 
 static void colour(uint8_t r, uint8_t g, uint8_t b) {
-    led_strip_set_pixel(led, 0, r, g, b); led_strip_refresh(led);
+    if (led) {
+        led_strip_set_pixel(led, 0, r, g, b);
+        led_strip_refresh(led);
+    }
+    // C3-Zero-compatible boards exist with the onboard RGB pixel on either
+    // GPIO10 or GPIO8. Drive both, matching the proven phone firmware.
+    if (led_alt) {
+        led_strip_set_pixel(led_alt, 0, r, g, b);
+        led_strip_refresh(led_alt);
+    }
+}
+
+void layershot_led_shutter_flash(void) {
+    shutter_flash_ticks = 4;
+}
+
+void layershot_led_test(void) {
+    // The main task is the sole owner of the RMT LED drivers. This avoids
+    // concurrent refreshes from the HTTP server task and makes every colour
+    // remain visible for roughly 450 ms.
+    led_test_ticks = 20;
 }
 
 static void main_task(void *unused) {
     int pressed_ticks = 0, reconnect_ticks = 0, poll_ticks = 0;
+    int pairing_blink_ticks = 0;
     while (true) {
         bool pressed = gpio_get_level(BOOT_BUTTON) == 0;
         if (pressed) pressed_ticks++;
@@ -32,9 +58,28 @@ static void main_task(void *unused) {
             pressed_ticks = 0;
         }
 
-        if (layershot_camera_is_pairing()) colour(0, 0, 45);
-        else if (layershot_camera_is_connected()) colour(0, 35, 0);
-        else colour(35, 0, 0);
+        if (led_test_ticks > 0) {
+            int phase = led_test_ticks;
+            if (phase > 15) colour(45, 0, 0);
+            else if (phase > 10) colour(0, 45, 0);
+            else if (phase > 5) colour(0, 0, 45);
+            else colour(45, 0, 28);
+            led_test_ticks--;
+        } else {
+            if (shutter_flash_ticks > 0) {
+                colour(45, 0, 28);
+                shutter_flash_ticks--;
+            } else if (layershot_camera_is_pairing()) {
+                pairing_blink_ticks = (pairing_blink_ticks + 1) % 8;
+                colour(0, 0, pairing_blink_ticks < 4 ? 45 : 0);
+            } else if (layershot_camera_is_connected()) {
+                pairing_blink_ticks = 0;
+                colour(0, 35, 0);
+            } else {
+                pairing_blink_ticks = 0;
+                colour(35, 0, 0);
+            }
+        }
 
         if (++reconnect_ticks >= 200) {
             reconnect_ticks = 0;
@@ -87,8 +132,13 @@ void app_main(void) {
         nvs_flash_erase(); nvs_flash_init();
     }
     led_strip_config_t strip = {.strip_gpio_num=RGB_LED,.max_leds=1,.led_model=LED_MODEL_WS2812,.color_component_format=LED_STRIP_COLOR_COMPONENT_FMT_GRB};
-    led_strip_rmt_config_t rmt = {.clk_src=RMT_CLK_SRC_DEFAULT,.resolution_hz=10000000,.mem_block_symbols=64,.flags.with_dma=false};
-    led_strip_new_rmt_device(&strip,&rmt,&led); colour(35,0,0);
+    // One WS2812 pixel needs 24 symbols. Keep each channel at 32 so the C3 has
+    // enough RMT memory to drive both possible onboard-LED pins.
+    led_strip_rmt_config_t rmt = {.clk_src=RMT_CLK_SRC_DEFAULT,.resolution_hz=10000000,.mem_block_symbols=32,.flags.with_dma=false};
+    led_strip_new_rmt_device(&strip,&rmt,&led);
+    strip.strip_gpio_num = RGB_LED_ALT;
+    led_strip_new_rmt_device(&strip,&rmt,&led_alt);
+    colour(35,0,0);
     gpio_config_t button={.pin_bit_mask=1ULL<<BOOT_BUTTON,.mode=GPIO_MODE_INPUT,.pull_up_en=GPIO_PULLUP_ENABLE};
     gpio_config(&button);
     layershot_network_init();
