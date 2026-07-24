@@ -303,11 +303,14 @@ def discover_printers(seed_printers=()):
                 saved = seed_by_host.get(printer["host"], {})
                 if saved:
                     saved_model = saved.get("model")
-                    if saved_model and (
-                            printer["model"] == "Other Moonraker / Klipper"
-                            or (printer["model"] == "K2" and saved_model == "K2 Plus")):
+                    detected_model = printer["model"]
+                    if saved_model and detected_model == "Other Moonraker / Klipper":
                         printer["model"] = saved_model
-                    if saved.get("name"):
+                    saved_name = saved.get("name")
+                    if (detected_model != "Other Moonraker / Klipper"
+                            and saved_name in (saved_model, "Klipper", "K2 Plus", "K2")):
+                        printer["name"] = detected_model
+                    elif saved_name:
                         printer["name"] = saved["name"]
                 printers.append(printer)
             except Exception:

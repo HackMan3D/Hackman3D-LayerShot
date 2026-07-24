@@ -690,6 +690,13 @@ class MainWindow(QMainWindow):
                     [str(esptool_executable), *esptool_arguments],
                     check=True, capture_output=True, text=True,
                     **hidden_subprocess_kwargs())
+            elif platform.system() == "Darwin" and getattr(sys, "frozen", False):
+                # Run the bundled flasher outside the Qt process. esptool can
+                # otherwise hold Python's GIL long enough for macOS to show the
+                # application as an unresponsive white window.
+                subprocess.run(
+                    [sys.executable, "--esptool-helper", *esptool_arguments],
+                    check=True, capture_output=True, text=True)
             else:
                 import esptool
                 esptool.main(esptool_arguments)
