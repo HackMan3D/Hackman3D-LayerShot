@@ -38,7 +38,7 @@ if sys.platform == "darwin":
                  bundle_identifier="com.hackman3d.layershot.desktop",
                  info_plist={"CFBundleDisplayName":"Hackman3D LayerShot",
                              "CFBundleName":"Hackman3D LayerShot",
-                             "CFBundleShortVersionString":"0.5.2","CFBundleVersion":"0.5.2",
+                             "CFBundleShortVersionString":"0.6.0","CFBundleVersion":"0.6.0",
                              "NSAppTransportSecurity":{"NSAllowsLocalNetworking":True,
                                                        "NSAllowsArbitraryLoadsInWebContent":True},
                              "NSLocalNetworkUsageDescription":"Hackman3D LayerShot connects to your 3D printers and ESP32 on your local network.",

@@ -22,11 +22,17 @@ DerivedData/
 
 # Arduino build products and local IDE state
 firmware/**/build/
+firmware/**/managed_components/
+firmware/**/sdkconfig
 *.bin
 *.elf
 *.map
 *.partitions.bin
 *.bootloader.bin
+
+# The two ready-to-flash firmware images below are intentionally versioned.
+!src/hackman_layershot/assets/Hackman3DLayerShotPhone.bin
+!src/hackman_layershot/assets/Hackman3DLayerShotDJI.bin
 
 # Local settings, secrets and logs
 *.log

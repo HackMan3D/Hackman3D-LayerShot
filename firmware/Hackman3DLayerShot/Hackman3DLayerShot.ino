@@ -9,7 +9,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "dashboard.h"
 
-static const char *FIRMWARE_VERSION = "1.7.0";
+static const char *FIRMWARE_VERSION = "1.8.0";
 static const char *HOSTNAME = "hackman-layershot";
 static const char *BLE_NAME = "Hackman3D LayerShot";
 static const char *SETUP_AP = "Hackman3D-LayerShot-Setup";
@@ -35,6 +35,7 @@ uint32_t shutterFlashUntil = 0;
 uint32_t lastBlinkAt = 0;
 bool blinkOn = false;
 String serialLine;
+String cameraType = "iphone";
 String printerHost;
 uint16_t printerPort = 4408;
 uint16_t captureEvery = 1;
@@ -88,6 +89,10 @@ bool triggerShutter() {
   return true;
 }
 
+String cameraName() {
+  return cameraType == "android" ? "Android smartphone" : "iPhone";
+}
+
 void clearBluetoothBonds() {
   bleKeyboard.clearBonds();
   bleConnected = false;
@@ -106,6 +111,8 @@ void setupWeb() {
       FIRMWARE_VERSION + "\",\"hostname\":\"" + HOSTNAME + ".local\",\"ip\":\"" + ip +
       "\",\"ssid\":\"" + jsonEscape(WiFi.SSID()) + "\",\"rssi\":" + String(WiFi.RSSI()) +
       ",\"wifi\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") +
+      ",\"camera_type\":\"" + jsonEscape(cameraType) + "\"" +
+      ",\"camera_name\":\"" + jsonEscape(cameraName()) + "\"" +
       ",\"bluetooth\":" + String(bleConnected ? "true" : "false") +
       ",\"pairing\":" + String(pairingMode ? "true" : "false") +
       ",\"autonomous\":" + String(autonomousEnabled ? "true" : "false") +
@@ -128,7 +135,7 @@ void setupWeb() {
       sendJSON(200, "{\"ok\":true,\"triggered\":true}");
     } else {
       lastCommand = "shutter_failed";
-      sendJSON(409, "{\"ok\":false,\"error\":\"iphone_not_connected\"}");
+      sendJSON(409, "{\"ok\":false,\"error\":\"camera_not_connected\"}");
     }
   });
   web.on("/led-test", HTTP_POST, [] {
@@ -162,6 +169,18 @@ void setupWeb() {
     sendJSON(200, "{\"ok\":true,\"restarting\":true}");
     delay(500);
     ESP.restart();
+  });
+  web.on("/camera-config", HTTP_POST, [] {
+    String target = web.arg("camera");
+    if (target != "iphone" && target != "android") {
+      sendJSON(400, "{\"ok\":false,\"error\":\"unsupported_camera\"}");
+      return;
+    }
+    cameraType = target;
+    preferences.begin("layershot", false);
+    preferences.putString("camera", cameraType);
+    preferences.end();
+    sendJSON(200, "{\"ok\":true,\"camera\":\"" + jsonEscape(cameraType) + "\"}");
   });
   web.on("/printer-config", HTTP_POST, [] {
     String host = web.arg("host");
@@ -248,6 +267,9 @@ void handleSerialProvisioning() {
         preferences.putUShort("skip", (uint16_t)max(0L, serialField(serialLine, 6).toInt()));
         preferences.putUShort("stop", (uint16_t)max(0L, serialField(serialLine, 7).toInt()));
         preferences.putUShort("delay", (uint16_t)max(0L, serialField(serialLine, 8).toInt()));
+        String newCamera = serialField(serialLine, 9);
+        if (newCamera != "android") newCamera = "iphone";
+        preferences.putString("camera", newCamera);
         preferences.putBool("autonomous", true);
         preferences.end();
         Serial.println("LAYERSHOT_CONFIG_OK");
@@ -406,6 +428,8 @@ void setup() {
   skipLayers = preferences.getUShort("skip", 0);
   stopAfterLayer = preferences.getUShort("stop", 0);
   stabilizationMs = preferences.getUShort("delay", 1000);
+  cameraType = preferences.getString("camera", "iphone");
+  if (cameraType != "android") cameraType = "iphone";
   autonomousEnabled = preferences.getBool("autonomous", false);
   preferences.end();
   connectWiFi();

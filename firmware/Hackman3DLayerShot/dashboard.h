@@ -25,9 +25,9 @@ footer{text-align:center;color:#727d8e;margin-top:24px}@media(max-width:720px){.
 <article class="card"><div class="title"><h2>Wi-Fi</h2><span class="badge" id="wifiBadge">…</span></div>
 <div class="metrics"><div class="metric"><small>Réseau</small><strong id="ssid">—</strong></div><div class="metric"><small>Adresse IP</small><strong id="ip">—</strong></div><div class="metric"><small>Signal</small><strong id="rssi">—</strong></div></div>
 <form id="wifiForm"><label>Nouveau réseau Wi-Fi</label><input name="ssid" required placeholder="Nom du réseau"><label>Mot de passe</label><div class="row"><input id="wifiPassword" name="password" type="password" placeholder="Mot de passe"><button type="button" onclick="togglePassword()">Afficher</button></div><div class="actions"><button class="primary">Enregistrer et redémarrer</button></div></form></article>
-<article class="card"><div class="title"><h2>Bluetooth · iPhone</h2><span class="badge" id="bleBadge">…</span></div>
-<p class="help">Sur l’iPhone, ouvrez Réglages › Bluetooth, puis sélectionnez <b>Hackman3D LayerShot</b>. Bouton BOOT : appui court = photo, 3 secondes = appairage, 10 secondes = suppression. LED : rouge = déconnecté, bleu clignotant = appairage, vert = connecté, violet = photo.</p>
-<div class="actions"><button class="primary" onclick="post('/pair')">Rendre détectable</button><button onclick="post('/trigger')">Tester l’obturateur</button><button onclick="post('/led-test')">Tester la LED</button><button class="danger" onclick="post('/reset-bonds')">Effacer l’appairage</button></div></article>
+	<article class="card"><div class="title"><h2>Caméra · <span id="cameraName">—</span></h2><span class="badge" id="bleBadge">…</span></div>
+	<p class="help" id="pairingHelp">Chargement des instructions d’appairage…</p>
+	<div class="actions"><button class="primary" onclick="post('/pair')">Démarrer l’appairage</button><button onclick="post('/trigger')">Tester l’obturateur</button><button onclick="post('/led-test')">Tester la LED</button><button class="danger" onclick="post('/reset-bonds')">Oublier la caméra</button></div></article>
 <article class="card wide"><div class="title"><h2>Imprimante et détection des couches</h2><span class="badge" id="printerBadge">…</span></div>
 <div class="metrics"><div class="metric"><small>État</small><strong id="printerState">—</strong></div><div class="metric"><small>Couche</small><strong id="layer">—</strong></div><div class="metric"><small>Déclenchements</small><strong id="triggers">0</strong></div></div>
 <p class="help">Dernière commande reçue : <b id="lastCommand">—</b> · Total des commandes : <b id="commands">0</b></p>
@@ -40,9 +40,10 @@ const $=id=>document.getElementById(id);const say=t=>$('message').textContent=t;
 function togglePassword(){let p=$('wifiPassword');p.type=p.type==='password'?'text':'password'}
 async function post(url,data){try{let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data?new URLSearchParams(data):''});let j=await r.json();say(j.ok?'Commande effectuée.':('Erreur : '+(j.error||r.status)));setTimeout(refresh,400)}catch(e){say('Connexion impossible : '+e.message)}}
 async function refresh(){try{let s=await (await fetch('/status',{cache:'no-store'})).json();
-$('identity').textContent=s.hostname+' · '+s.ip;$('firmware').textContent=s.firmware;$('ssid').textContent=s.ssid||'Non configuré';$('ip').textContent=s.ip;$('rssi').textContent=s.wifi?(s.rssi+' dBm'):'—';
-$('wifiBadge').textContent=s.wifi?'Connecté':'Déconnecté';$('wifiBadge').className='badge '+(s.wifi?'ok':'bad');
-$('bleBadge').textContent=s.bluetooth?'iPhone connecté':(s.pairing?'Détectable':'Déconnecté');$('bleBadge').className='badge '+(s.bluetooth?'ok':'bad');
+	$('identity').textContent=s.hostname+' · '+s.ip;$('firmware').textContent=s.firmware;$('ssid').textContent=s.ssid||'Non configuré';$('ip').textContent=s.ip;$('rssi').textContent=s.wifi?(s.rssi+' dBm'):'—';
+	$('wifiBadge').textContent=s.wifi?'Connecté':'Déconnecté';$('wifiBadge').className='badge '+(s.wifi?'ok':'bad');
+	$('cameraName').textContent=s.camera_name||'Smartphone';$('bleBadge').textContent=s.bluetooth?'Caméra connectée':(s.pairing?'Appairage actif':'Déconnectée');$('bleBadge').className='badge '+(s.bluetooth?'ok':'bad');
+	$('pairingHelp').innerHTML=s.camera_type==='android'?'Sur Android, ouvrez Paramètres › Appareils connectés › Associer un nouvel appareil, sélectionnez <b>Hackman3D LayerShot</b>, puis ouvrez l’appareil photo. Réglez les touches de volume sur Déclencheur si nécessaire.': 'Sur l’iPhone, ouvrez Réglages › Bluetooth, sélectionnez <b>Hackman3D LayerShot</b>, puis ouvrez l’app Appareil photo. Bouton BOOT : appui court = photo, 3 secondes = appairage, 10 secondes = oubli.';
 $('printerBadge').textContent=s.printer_connected?'Détectée':'Non détectée';$('printerBadge').className='badge '+(s.printer_connected?'ok':'bad');
 $('printerState').textContent=s.printer_state||'Inconnue';$('layer').textContent=s.current_layer>=0?(s.current_layer+(s.total_layers>0?' / '+s.total_layers:'')):'—';$('triggers').textContent=s.triggers;
 $('lastCommand').textContent=s.last_command||'—';$('commands').textContent=s.commands||0;

@@ -15,6 +15,11 @@ from .translations import LANGUAGES, tr
 MODELS = ["K2 Plus", "K2", "K1 Max", "K1C", "K1", "Ender-3 V3 Plus",
           "Ender-3 V3", "Ender-3 V3 KE", "Ender-3 V3 SE", "Hi", "Hi Combo",
           "SparkX i7", "Other Moonraker / Klipper"]
+CAMERA_TARGETS = (
+    ("camera_iphone", "iphone"),
+    ("camera_android", "android"),
+    ("camera_dji", "dji"),
+)
 
 class CameraView(QWidget):
     def __init__(self, host, port, parent=None):
@@ -89,6 +94,7 @@ class MainWindow(QMainWindow):
         self.settings = QSettings()
         self.lang = self.settings.value("language", "en")
         self.printers = json.loads(self.settings.value("printers", "[]"))
+        self.camera_target_value = self.settings.value("camera_target", "iphone")
         self.pool = QThreadPool.globalInstance()
         self.active_workers = set()
         self.cards = {}
@@ -220,6 +226,24 @@ class MainWindow(QMainWindow):
         w.layout().addLayout(wf)
         w.layout().addWidget(self.label(self.T("wifi_24_tip"), "good"))
         lay.addWidget(w)
+        camera = card()
+        camera.layout().addWidget(self.label(self.T("camera_step"), "section"))
+        camera_form = QFormLayout()
+        self.camera_target = QComboBox()
+        for translation_key, value in CAMERA_TARGETS:
+            self.camera_target.addItem(self.T(translation_key), value)
+        selected_camera = self.camera_target.findData(self.camera_target_value)
+        self.camera_target.setCurrentIndex(selected_camera if selected_camera >= 0 else 0)
+        self.camera_target.currentIndexChanged.connect(self.camera_target_changed)
+        camera_form.addRow(self.T("camera_used"), self.camera_target)
+        camera.layout().addLayout(camera_form)
+        self.camera_compatibility = self.label("", "good")
+        self.camera_compatibility.setWordWrap(True)
+        camera.layout().addWidget(self.camera_compatibility)
+        self.install_pairing_guide = self.label("", "supportCopy")
+        camera.layout().addWidget(self.install_pairing_guide)
+        lay.addWidget(camera)
+
         e = card(); e.layout().addWidget(self.label(self.T("esp_step"), "section"))
         ef = QFormLayout(); self.port_combo = QComboBox(); self.refresh_ports()
         ef.addRow(self.T("serial"), self.port_combo); e.layout().addLayout(ef)
@@ -230,13 +254,17 @@ class MainWindow(QMainWindow):
         e.layout().addWidget(self.flash_progress)
         e.layout().addWidget(self.label(self.T("tip"), "good")); lay.addWidget(e)
         pairing = card(); pairing.layout().addWidget(self.label(self.T("pairing_step"), "section"))
-        pairing.layout().addWidget(self.label(self.T("pairing_guide"), "supportCopy"))
+        self.setup_pairing_guide = self.label("", "supportCopy")
+        pairing.layout().addWidget(self.setup_pairing_guide)
         tools = QHBoxLayout()
-        tools.addWidget(button(self.T("pair"), self.pair_iphone, True))
+        self.setup_pair_button = button(self.T("pair"), self.pair_camera, True)
+        tools.addWidget(self.setup_pair_button)
         tools.addWidget(button(self.T("shot"), self.test_shutter))
-        tools.addWidget(button(self.T("unpair"), self.unpair_iphone))
+        self.setup_unpair_button = button(self.T("unpair"), self.unpair_camera)
+        tools.addWidget(self.setup_unpair_button)
         tools.addWidget(button(self.T("open_dashboard"), self.open_esp_dashboard))
         tools.addStretch(); pairing.layout().addLayout(tools); lay.addWidget(pairing); lay.addStretch()
+        self.update_camera_guides()
         return page
 
     def build_timelapse_page(self):
@@ -289,7 +317,8 @@ class MainWindow(QMainWindow):
         metrics = QGridLayout()
         for index, (key, title) in enumerate([
             ("firmware", self.T("esp_firmware")), ("ip", self.T("esp_ip")),
-            ("wifi", "Wi-Fi"), ("bluetooth", "Bluetooth"),
+            ("wifi", "Wi-Fi"), ("camera", self.T("camera_used")),
+            ("bluetooth", "Bluetooth"),
             ("printer", self.T("esp_printer")), ("layer", self.T("layer")),
         ]):
             widget = self.metric_widget(title, "—")
@@ -297,15 +326,19 @@ class MainWindow(QMainWindow):
             self.esp_metrics[key] = widget[1]
         status.layout().addLayout(metrics)
         actions = QHBoxLayout()
-        actions.addWidget(button(self.T("pair"), self.pair_iphone, True))
+        self.esp_pair_button = button(self.T("pair"), self.pair_camera, True)
+        actions.addWidget(self.esp_pair_button)
         actions.addWidget(button(self.T("shot"), self.test_shutter))
         actions.addWidget(button(self.T("test_led"), self.test_led))
-        actions.addWidget(button(self.T("unpair"), self.unpair_iphone))
+        self.esp_unpair_button = button(self.T("unpair"), self.unpair_camera)
+        actions.addWidget(self.esp_unpair_button)
         actions.addStretch(); status.layout().addLayout(actions)
         lay.addWidget(status)
         guide = card(); guide.layout().addWidget(self.label(self.T("pairing_step"), "section"))
-        guide.layout().addWidget(self.label(self.T("pairing_guide"), "supportCopy"))
+        self.esp_pairing_guide = self.label("", "supportCopy")
+        guide.layout().addWidget(self.esp_pairing_guide)
         lay.addWidget(guide); lay.addStretch()
+        self.update_camera_guides()
         return page
 
     def build_about_page(self):
@@ -331,6 +364,51 @@ class MainWindow(QMainWindow):
         if code == self.lang: return
         self.settings.setValue("language", code)
         QMessageBox.information(self, "LayerShot", "The new language will be applied after restarting the app.")
+
+    def camera_target_changed(self):
+        self.camera_target_value = self.camera_target.currentData() or "iphone"
+        self.settings.setValue("camera_target", self.camera_target_value)
+        self.update_camera_guides()
+
+    def camera_target_name(self, target=None):
+        target = target or self.camera_target_value
+        key = {
+            "iphone": "camera_iphone",
+            "android": "camera_android",
+            "dji": "camera_dji",
+        }.get(target, "camera_iphone")
+        return self.T(key)
+
+    def camera_pairing_guide(self, target=None):
+        target = target or self.camera_target_value
+        return self.T({
+            "iphone": "pairing_guide_iphone",
+            "android": "pairing_guide_android",
+            "dji": "pairing_guide_dji",
+        }.get(target, "pairing_guide_iphone"))
+
+    def camera_compatibility_text(self, target=None):
+        target = target or self.camera_target_value
+        return self.T({
+            "iphone": "compatibility_iphone",
+            "android": "compatibility_android",
+            "dji": "compatibility_dji",
+        }.get(target, "compatibility_iphone"))
+
+    def update_camera_guides(self):
+        guide = self.camera_pairing_guide()
+        if hasattr(self, "camera_compatibility"):
+            self.camera_compatibility.setText(self.camera_compatibility_text())
+        for attribute in ("install_pairing_guide", "setup_pairing_guide",
+                          "esp_pairing_guide"):
+            widget = getattr(self, attribute, None)
+            if widget is not None:
+                widget.setText(guide)
+        pair_text = self.T("pair_dji") if self.camera_target_value == "dji" else self.T("pair")
+        for attribute in ("setup_pair_button", "esp_pair_button"):
+            widget = getattr(self, attribute, None)
+            if widget is not None:
+                widget.setText(pair_text)
 
     def run(self, fn, args=(), done=None, failed=None):
         worker = Worker(fn,*args)
@@ -493,8 +571,20 @@ class MainWindow(QMainWindow):
         self.esp_metrics["firmware"].setText(str(status.get("firmware", "—")))
         self.esp_metrics["ip"].setText(str(status.get("ip", "—")))
         self.esp_metrics["wifi"].setText(self.T("online") if status.get("wifi") else self.T("offline"))
+        target = status.get("camera_type") or self.camera_target_value
+        self.camera_target_value = target
+        self.settings.setValue("camera_target", target)
+        if hasattr(self, "camera_target"):
+            index = self.camera_target.findData(target)
+            if index >= 0 and index != self.camera_target.currentIndex():
+                self.camera_target.blockSignals(True)
+                self.camera_target.setCurrentIndex(index)
+                self.camera_target.blockSignals(False)
+        self.update_camera_guides()
+        self.esp_metrics["camera"].setText(
+            status.get("camera_name") or self.camera_target_name(target))
         self.esp_metrics["bluetooth"].setText(
-            self.T("esp_iphone_connected") if status.get("bluetooth")
+            self.T("esp_camera_connected") if status.get("bluetooth")
             else (self.T("esp_detectable") if status.get("pairing") else self.T("offline")))
         printer = status.get("printer") or "—"
         self.esp_metrics["printer"].setText(
@@ -551,7 +641,10 @@ class MainWindow(QMainWindow):
         port=self.port_combo.currentText()
         ssid=self.ssid.currentText().strip()
         wifi_password=self.password.text()
-        fw=asset_path("Hackman3DLayerShot.bin")
+        camera_target = self.camera_target.currentData() or "iphone"
+        firmware_name = ("Hackman3DLayerShotDJI.bin" if camera_target == "dji"
+                         else "Hackman3DLayerShotPhone.bin")
+        fw=asset_path(firmware_name)
         missing = []
         if not self.printers:
             missing.append(self.T("missing_printer"))
@@ -599,6 +692,7 @@ class MainWindow(QMainWindow):
                 wifi_password.encode().hex(),
                 printer["host"], str(printer["port"]),
                 "1", "0", "0", "800",
+                camera_target,
             ])+"\n"
             deadline=time.monotonic()+25
             last_error=""
@@ -652,10 +746,18 @@ class MainWindow(QMainWindow):
                 "“Hackman3D-LayerShot-Setup” Wi-Fi network, then send the settings again.")
         self.run(task,done=lambda _:QMessageBox.information(
             self,"LayerShot","Settings stored in the ESP32. It is restarting now."))
-    def pair_iphone(self):
-        self.run(esp_post,(self.esp_host.text().strip(),"pair",{}),lambda _:QMessageBox.information(self,"LayerShot","Pairing is active for 60 seconds. Open iPhone Bluetooth settings."))
-    def unpair_iphone(self):
-        self.run(esp_post,(self.esp_host.text().strip(),"reset-bonds",{}),lambda _:QMessageBox.information(self,"LayerShot","The saved Bluetooth pairing was deleted. Also choose “Forget This Device” on the iPhone before pairing again."))
+    def pair_camera(self):
+        target = self.camera_target_value
+        message = self.T("pairing_started_dji") if target == "dji" else self.T("pairing_started_phone")
+        self.run(
+            esp_post, (self.esp_host.text().strip(), "pair", {}),
+            lambda _: QMessageBox.information(self, "LayerShot", message))
+
+    def unpair_camera(self):
+        self.run(
+            esp_post, (self.esp_host.text().strip(), "reset-bonds", {}),
+            lambda _: QMessageBox.information(
+                self, "LayerShot", self.T("pairing_deleted")))
     def open_esp_dashboard(self):
         host=self.esp_host.text().strip()
         self.open_url(host if "://" in host else "http://"+host)

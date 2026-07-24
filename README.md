@@ -2,20 +2,21 @@
 
 Hackman3D LayerShot turns a small ESP32-C3 into an autonomous Bluetooth camera
 shutter for 3D-printing timelapses. It detects layer changes through Moonraker
-and asks the native iPhone Camera app to take one photo per layer.
+and triggers an iPhone, an Android phone or a compatible DJI camera.
 
 No iPhone application is required. Once the ESP32 has been configured, the Mac
 or PC application can be closed during the entire print.
 
 ![LayerShot printer dashboard](docs/images/printer-dashboard.png)
 
-## Download — version 0.5.2
+## Download — version 0.6.0
 
 No compilation or Arduino IDE setup is required:
 
-- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.2/Hackman3D-LayerShot-macOS-0.5.2.zip)
-- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.2/Hackman3D-LayerShot-Windows-Setup-0.5.2.exe)
-- [Standalone ESP32-C3 firmware 1.7.0](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.5.2/Hackman3D-LayerShot-ESP32-C3-Firmware-1.7.0.bin)
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-macOS-0.6.0.zip)
+- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-Windows-Setup-0.6.0.exe)
+- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
+- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
 
 The desktop application already contains the firmware and installs it from the
 **Installation** page. The standalone firmware file is provided only for
@@ -32,12 +33,28 @@ LayerShot is designed to be extremely simple:
 
 LayerShot installs the ESP32 program, sends all settings and restarts the board
 automatically. There is no source code to edit, no Arduino IDE to install and no
-firmware file to select. Pair the iPhone once, open its Camera app and LayerShot
-is ready to photograph every layer.
+firmware file to select. Choose the camera type, follow its pairing instructions
+and LayerShot is ready to photograph every layer.
+
+## Camera compatibility
+
+The Installation page clearly shows these details before installing the
+matching firmware:
+
+| Choice in LayerShot | Compatible devices | How the shutter works | Important requirement |
+|---|---|---|---|
+| iPhone | iPhones supporting Bluetooth keyboard/remote volume keys | Bluetooth HID `Volume +` | Keep Apple's Camera app open |
+| Android | Phones whose camera app can assign a volume key to the shutter | Bluetooth HID `Volume +` | Enable “volume button = shutter” when required; support depends on the phone and camera app |
+| DJI | DJI Osmo Action 4, Osmo Action 5 Pro, Osmo Action 6 and Osmo 360 | Official DJI BLE camera protocol | Put the camera in Photo mode and approve pairing on its screen |
+
+DJI Osmo Action 3 and older models are not listed as compatible by the official
+protocol demo used by this project. Smartphone compatibility can vary because
+manufacturers are free to change how their Camera app handles volume keys.
 
 ## What LayerShot does
 
-- controls the iPhone Camera shutter through Bluetooth HID (`Volume +`);
+- controls supported phone Camera apps through Bluetooth HID (`Volume +`);
+- controls compatible DJI cameras through the official DJI BLE protocol;
 - detects layer changes autonomously through the printer's Moonraker API;
 - supports multiple printers in separate dashboard cards;
 - discovers compatible Klipper/Moonraker printers on the local network;
@@ -71,7 +88,7 @@ camera and layer-count availability depends on the API exposed by the printer.
 ## Requirements
 
 - an ESP32-C3 board with 4 MB flash;
-- an iPhone compatible with Bluetooth camera remotes;
+- a compatible iPhone, Android phone or DJI camera as listed above;
 - a 2.4 GHz Wi-Fi network;
 - a printer exposing Moonraker on the same local network;
 - macOS 14 or later on Apple Silicon, or Windows 10/11 (32-bit or 64-bit).
@@ -83,16 +100,21 @@ camera and layer-count availability depends on the API exposed by the printer.
 3. Discover or add the printer, test its connection, then save it.
 4. Select the 2.4 GHz Wi-Fi network and enter its password. LayerShot can ask
    macOS or Windows for a password already known by that computer.
-5. Connect the ESP32-C3 with a USB data cable and select its serial port.
-6. Choose **Install firmware**. LayerShot validates the required information,
-   flashes firmware 1.7.0 and sends the Wi-Fi and printer settings over USB.
-7. Wait for the ESP LED to show that it is connected.
+5. Choose the camera. LayerShot displays its exact compatibility and pairing
+   procedure, then automatically selects the correct firmware.
+6. Connect the ESP32-C3 with a USB data cable and select its serial port.
+7. Choose **Install and configure**. LayerShot validates all required
+   information, installs the selected firmware and sends the Wi-Fi, printer and
+   camera settings over USB.
+8. Follow the displayed pairing guide and wait for the ESP LED to turn green.
 
 Wi-Fi credentials are never embedded in the application or downloadable
 firmware. They are written only to the configured ESP32 and, when explicitly
 retrieved or saved, to the current user's protected operating-system keychain.
 
-## Pair the iPhone
+## Pair the camera
+
+### iPhone
 
 1. On the iPhone, open **Settings > Bluetooth**.
 2. In LayerShot, choose **Enable iPhone pairing**, or hold the ESP32 **BOOT**
@@ -112,13 +134,28 @@ The **BOOT** button has three actions:
 When removing a pairing, also choose **Forget This Device** in the iPhone's
 Bluetooth settings before pairing again.
 
+### Android
+
+1. Open **Settings > Connected devices > Pair new device**.
+2. Start pairing in LayerShot and select **Hackman3D LayerShot**.
+3. Open the Camera app and, if necessary, assign a volume button to **Shutter**.
+4. Keep the Camera app open and test the shutter before starting the print.
+
+### DJI
+
+1. Power on a compatible DJI camera and select **Photo** mode.
+2. Start the DJI search from LayerShot or hold **BOOT** for three seconds.
+3. Keep the camera close to LayerShot and approve the verification prompt on
+   the DJI screen.
+4. Test the shutter. The ESP32 stores the pairing and reconnects automatically.
+
 ## LED colours
 
 | Colour | Meaning |
 |---|---|
-| Red | Powered, but the iPhone is not connected |
+| Red | Powered, but the selected camera is not connected |
 | Flashing blue | Bluetooth pairing mode |
-| Green | iPhone connected |
+| Green | Camera connected |
 | Purple flash | Camera shutter command sent |
 
 ## Autonomous operation
@@ -209,15 +246,16 @@ End users should use the ready-to-run downloads above. Contributors need Python
 ```
 
 Both scripts package the shared files under `src/hackman_layershot` and produce
-application version 0.5.2. The Windows script requires Python 3.12 x64,
+application version 0.6.0. The Windows script requires Python 3.12 x64,
 Python 3.10 x86 and Inno Setup 7. It produces one installer that automatically
 selects the correct architecture; end users do not need Python or Inno Setup.
 
 ## Firmware source
 
-The Arduino source is in `firmware/Hackman3DLayerShot`. It targets an ESP32-C3
-with 4 MB flash and the **Huge APP** partition scheme. The desktop app embeds the
-ready-to-flash firmware image.
+The phone firmware source is in `firmware/Hackman3DLayerShot`. The DJI firmware
+source is in `firmware/Hackman3DLayerShotDJI` and is built with ESP-IDF. Both
+target an ESP32-C3 with 4 MB flash. The desktop app embeds both ready-to-flash
+images and chooses the correct one from the camera selection.
 
 ## Third-party components
 
@@ -229,6 +267,12 @@ the x86 compatibility application embeds the Python implementation of esptool
 uses the last official LGPL PySide2 release supporting 32-bit Windows, while
 the other builds use PySide6. The main Python and Qt dependencies are listed in
 `pyproject.toml` and `build_windows.ps1`.
+
+DJI camera support is based on DJI's official
+[Osmo GPS Controller Demo](https://github.com/dji-sdk/Osmo-GPS-Controller-Demo).
+Its compatibility list covers Osmo Action 4, Action 5 Pro, Action 6 and Osmo
+360. The upstream licence is preserved in
+`firmware/Hackman3DLayerShotDJI/DJI-LICENSE.txt`.
 
 ## Support
 

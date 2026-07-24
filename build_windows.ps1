@@ -43,7 +43,7 @@ if (-not $InnoCompiler) {
 }
 
 New-Item releases -ItemType Directory -Force | Out-Null
-Remove-Item "releases\Hackman3D-LayerShot-Windows-Setup-0.5.2.exe" -Force -ErrorAction SilentlyContinue
+Remove-Item "releases\Hackman3D-LayerShot-Windows-Setup-0.6.0.exe" -Force -ErrorAction SilentlyContinue
 & $InnoCompiler "installer\windows\Hackman3D-LayerShot.iss"
 if ($LASTEXITCODE -ne 0) { throw "Windows installer creation failed." }
-Write-Host "Created releases\Hackman3D-LayerShot-Windows-Setup-0.5.2.exe"
+Write-Host "Created releases\Hackman3D-LayerShot-Windows-Setup-0.6.0.exe"
