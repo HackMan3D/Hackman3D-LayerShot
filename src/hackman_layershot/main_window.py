@@ -683,7 +683,6 @@ class MainWindow(QMainWindow):
             printer_status(printer["host"], printer["port"])
             import serial
             esptool_executable = asset_path("esptool.exe")
-            mac_esptool_executable = asset_path("esptool-macos")
             esptool_arguments = [
                 "--chip", "esp32c3", "--port", port,
                 "--baud", "460800",
@@ -696,42 +695,37 @@ class MainWindow(QMainWindow):
                     [str(esptool_executable), *esptool_arguments],
                     check=True, capture_output=True, text=True,
                     **hidden_subprocess_kwargs())
-            elif platform.system() == "Darwin" and mac_esptool_executable.exists():
-                # This is a separate console-only helper, not the LayerShot
-                # application executable, so macOS cannot create a second
-                # blank Qt application window while the board is flashed.
+            elif platform.system() == "Darwin":
+                # Run esptool inside the existing LayerShot process. Launching
+                # any bundled helper executable on macOS can make LaunchServices
+                # create a second, empty application window.
                 mac_esptool_arguments = list(esptool_arguments)
                 mac_esptool_arguments.insert(
                     mac_esptool_arguments.index("write-flash"), "--no-stub")
-                flash_error = ""
+                import esptool
+                last_error = ""
                 for attempt in range(8):
                     try:
-                        result = subprocess.run(
-                            [str(mac_esptool_executable), *mac_esptool_arguments],
-                            capture_output=True, text=True, timeout=180)
-                    except subprocess.TimeoutExpired as exc:
-                        raise RuntimeError(
-                            "The ESP32 flash did not finish within three minutes. "
-                            "Unplug and reconnect the board, then try again.") from exc
-                    if result.returncode == 0:
+                        esptool.main(mac_esptool_arguments)
                         break
-                    flash_error = (result.stderr or result.stdout or "").strip()
-                    port_busy = any(marker in flash_error.lower() for marker in (
-                        "resource temporarily unavailable",
-                        "could not exclusively lock port",
-                        "port is busy",
-                    ))
-                    if not port_busy:
-                        raise RuntimeError(flash_error)
-                    # A previous flash attempt or the USB port refresh can hold
-                    # the device briefly. Let macOS release it and retry.
-                    time.sleep(1.25)
+                    except Exception as exc:
+                        last_error = str(exc)
+                        port_busy = any(marker in last_error.lower() for marker in (
+                            "resource temporarily unavailable",
+                            "could not exclusively lock port",
+                            "port is busy",
+                        ))
+                        if not port_busy:
+                            raise
+                        # A previous attempt or the USB refresh can hold the
+                        # device briefly. Let macOS release it and retry.
+                        time.sleep(1.25)
                 else:
                     raise RuntimeError(
                         "The ESP32 USB port is still busy. Close Arduino IDE, "
                         "Serial Monitor and any other LayerShot window, unplug "
                         "and reconnect the ESP32, then try again.\n\n" +
-                        flash_error)
+                        last_error)
             else:
                 import esptool
                 esptool.main(esptool_arguments)
