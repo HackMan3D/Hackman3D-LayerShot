@@ -9,7 +9,7 @@ from .qt_compat import (
     QSpinBox, QStackedWidget, QVBoxLayout, QWidget
 )
 from . import __version__
-from .services import asset_path, discover_printers, esp_post, esp_status, known_wifi_networks, known_wifi_password, printer_status, save_wifi_password, serial_ports
+from .services import asset_path, discover_printers, esp_post, esp_status, hidden_subprocess_kwargs, known_wifi_networks, known_wifi_password, printer_status, save_wifi_password, serial_ports
 from .translations import LANGUAGES, tr
 
 MODELS = ["K2 Plus", "K2", "K1 Max", "K1C", "K1", "Ender-3 V3 Plus",
@@ -682,7 +682,8 @@ class MainWindow(QMainWindow):
                     and sys.maxsize > 2**32):
                 subprocess.run(
                     [str(esptool_executable), *esptool_arguments],
-                    check=True, capture_output=True, text=True)
+                    check=True, capture_output=True, text=True,
+                    **hidden_subprocess_kwargs())
             else:
                 import esptool
                 esptool.main(esptool_arguments)
@@ -803,7 +804,9 @@ class MainWindow(QMainWindow):
             command=[ffmpeg,"-y","-r",str(self.fps.value()),"-f","concat","-safe","0","-i",str(manifest)]
             if filters: command.extend(["-vf",",".join(filters)])
             command.extend(["-c:v",codec,"-crf",str(crf),"-pix_fmt","yuv420p",output])
-            subprocess.run(command,check=True,capture_output=True)
+            subprocess.run(
+                command, check=True, capture_output=True,
+                **hidden_subprocess_kwargs())
             manifest.unlink(missing_ok=True); return True
         self.run(task,done=lambda _:(self.render_progress.setRange(0,100),self.render_progress.setValue(100),QMessageBox.information(self,"LayerShot","Timelapse created.")),
                  failed=lambda e:(self.render_progress.setRange(0,100),QMessageBox.warning(self,"LayerShot",e)))

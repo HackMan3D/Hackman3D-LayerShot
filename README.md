@@ -18,6 +18,13 @@ No compilation or Arduino IDE setup is required:
 - [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
 - [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
 
+> **Security notice:** these downloads are not yet signed with Apple and
+> Microsoft developer certificates. macOS Gatekeeper or Windows SmartScreen may
+> therefore display a warning even when the files were downloaded from this
+> official repository. On macOS, right-click the app and choose **Open**. On
+> Windows, choose **More info**, verify the installer file name, then choose
+> **Run anyway**.
+
 The desktop application already contains the firmware and installs it from the
 **Installation** page. The standalone firmware file is provided only for
 recovery and advanced use.

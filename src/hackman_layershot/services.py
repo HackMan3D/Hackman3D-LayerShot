@@ -1,6 +1,11 @@
 import concurrent.futures, ipaddress, json, os, platform, re, socket, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request, uuid
 from pathlib import Path
 
+def hidden_subprocess_kwargs():
+    if platform.system() == "Windows":
+        return {"creationflags": subprocess.CREATE_NO_WINDOW}
+    return {}
+
 def asset_path(name):
     root = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
     return root / "assets" / name
@@ -110,6 +115,20 @@ def printer_status(host, port):
 
 def _local_ipv4_networks():
     addresses = set()
+    # Determine the active IPv4 address without relying on Unix-only commands.
+    # A UDP connect selects a route but sends no packet.
+    for target in (("8.8.8.8", 80), ("1.1.1.1", 80)):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+                probe.connect(target)
+                addresses.add(probe.getsockname()[0])
+        except OSError:
+            pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            addresses.add(info[4][0])
+    except OSError:
+        pass
     try:
         if platform.system() == "Darwin":
             output = subprocess.check_output(
@@ -123,6 +142,14 @@ def _local_ipv4_networks():
                         addresses.add(address)
                 except Exception:
                     pass
+        elif platform.system() == "Windows":
+            output = subprocess.check_output(
+                ["ipconfig"], text=True, errors="ignore",
+                stderr=subprocess.DEVNULL, timeout=4,
+                **hidden_subprocess_kwargs())
+            addresses.update(re.findall(
+                r"(?:IPv4[^:]*|IP Address[^:]*):\s*([0-9]+(?:\.[0-9]+){3})",
+                output, flags=re.IGNORECASE))
         else:
             output = subprocess.check_output(
                 ["hostname", "-I"], text=True, stderr=subprocess.DEVNULL, timeout=2)
@@ -183,9 +210,17 @@ def _describe_moonraker(host, port):
     except Exception:
         pass
     components = result.get("components", [])
+    printer_info = {}
+    try:
+        printer_info = request_json(
+            base + "/printer/info", timeout=1.2).get("result", {})
+    except Exception:
+        pass
     identity = " ".join([
         hostname, result.get("hostname", ""), result.get("software_version", ""),
         json.dumps(system, ensure_ascii=False),
+        json.dumps(printer_info, ensure_ascii=False),
+        json.dumps(result, ensure_ascii=False),
     ])
     model = _guess_printer_model(identity)
     try:
@@ -210,8 +245,14 @@ def _describe_moonraker(host, port):
                 model = "K1"
     except Exception:
         pass
-    name = hostname or result.get("hostname") or model
-    if not name or name == "Other Moonraker / Klipper":
+    name = hostname or result.get("hostname") or printer_info.get("hostname") or model
+    generic_names = {
+        "", "klipper", "moonraker", "fluidd", "mainsail", "localhost",
+        "creality", "crealityos", "buildroot",
+    }
+    if str(name).strip().lower() in generic_names and model != "Other Moonraker / Klipper":
+        name = model
+    if not name or str(name).strip().lower() in generic_names:
         name = f"Klipper {host}"
     return {
         "name": name, "model": model, "host": host, "port": port,
@@ -248,7 +289,9 @@ _esp_address_cache = {}
 def _arp_addresses():
     try:
         command = ["/usr/sbin/arp", "-a"] if platform.system() == "Darwin" else ["arp", "-a"]
-        output = subprocess.check_output(command, text=True, stderr=subprocess.DEVNULL, timeout=2)
+        output = subprocess.check_output(
+            command, text=True, stderr=subprocess.DEVNULL, timeout=2,
+            **hidden_subprocess_kwargs())
         lines = [line for line in output.splitlines() if "incomplete" not in line.lower()]
         # Prefer the LayerShot DHCP name, then the Espressif OUI used by the
         # tested C3-Zero. This avoids trying every smart device on the LAN.
@@ -329,7 +372,9 @@ def known_wifi_networks():
                 ["/usr/sbin/networksetup", "-listpreferredwirelessnetworks", "en0"],
                 text=True, stderr=subprocess.DEVNULL)
             return [x.strip() for x in out.splitlines()[1:] if x.strip()]
-        out = subprocess.check_output(["netsh", "wlan", "show", "profiles"], text=True)
+        out = subprocess.check_output(
+            ["netsh", "wlan", "show", "profiles"], text=True,
+            **hidden_subprocess_kwargs())
         return [x.split(":", 1)[1].strip() for x in out.splitlines() if "All User Profile" in x]
     except Exception:
         return []
@@ -369,7 +414,8 @@ def known_wifi_password(ssid):
                 save_wifi_password(ssid, password)
             return password
         out = subprocess.check_output(
-            ["netsh", "wlan", "show", "profile", f"name={ssid}", "key=clear"], text=True)
+            ["netsh", "wlan", "show", "profile", f"name={ssid}", "key=clear"],
+            text=True, **hidden_subprocess_kwargs())
         for line in out.splitlines():
             if "Key Content" in line:
                 return line.split(":", 1)[1].strip()
