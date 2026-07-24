@@ -695,9 +695,16 @@ class MainWindow(QMainWindow):
                 # This is a separate console-only helper, not the LayerShot
                 # application executable, so macOS cannot create a second
                 # blank Qt application window while the board is flashed.
-                subprocess.run(
-                    [str(mac_esptool_executable), *esptool_arguments],
-                    check=True, capture_output=True, text=True)
+                mac_esptool_arguments = list(esptool_arguments)
+                mac_esptool_arguments.insert(
+                    mac_esptool_arguments.index("write-flash"), "--no-stub")
+                try:
+                    subprocess.run(
+                        [str(mac_esptool_executable), *mac_esptool_arguments],
+                        check=True, capture_output=True, text=True)
+                except subprocess.CalledProcessError as exc:
+                    detail = (exc.stderr or exc.stdout or str(exc)).strip()
+                    raise RuntimeError(detail) from exc
             else:
                 import esptool
                 esptool.main(esptool_arguments)
