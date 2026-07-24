@@ -163,9 +163,18 @@ static bool decode_hex(const char *hex, char *output, size_t output_size) {
 
 bool layershot_apply_serial_config(const char *line) {
     char copy[512]; strlcpy(copy, line, sizeof(copy));
-    char *save = NULL, *fields[10] = {0}; int count = 0;
-    for (char *token = strtok_r(copy, "\t\r\n", &save);
-         token && count < 10; token = strtok_r(NULL, "\t\r\n", &save)) fields[count++] = token;
+    char *fields[10] = {0}; int count = 1;
+    fields[0] = copy;
+    // strtok_r() collapses adjacent tabs, shifting every following field when
+    // one value is empty. Split tabs explicitly so USB provisioning always
+    // keeps the ten-field desktop protocol aligned.
+    for (char *cursor = copy; *cursor && count < 10; cursor++) {
+        if (*cursor == '\t') {
+            *cursor = 0;
+            fields[count++] = cursor + 1;
+        }
+    }
+    fields[9][strcspn(fields[9], "\r\n")] = 0;
     if (count != 10 || strcmp(fields[0], "LAYERSHOT_CONFIG") ||
         strcmp(fields[9], "dji") || !decode_hex(fields[1], config.ssid, sizeof(config.ssid)) ||
         !decode_hex(fields[2], config.password, sizeof(config.password))) return false;

@@ -321,13 +321,16 @@ def _esp_base(host):
     cache_key = hostname.lower()
     cached = _esp_address_cache.get(cache_key)
     candidates = [cached] if cached else []
-    if hostname.endswith(".local"):
-        candidates.extend([
-            "hackman-layershot-001.lan",
-            "hackman-layershot.lan",
-        ])
-        candidates.extend(_arp_addresses())
     candidates.append(hostname)
+    # DHCP can change the address remembered by the desktop app. Always fall
+    # back to the LayerShot host aliases and the current ARP table, even when
+    # the saved value was an old numeric address.
+    candidates.extend([
+        "hackman-layershot.local",
+        "hackman-layershot-001.lan",
+        "hackman-layershot.lan",
+    ])
+    candidates.extend(_arp_addresses())
     for candidate in dict.fromkeys(x for x in candidates if x):
         base = f"http://{candidate}" + (f":{port}" if port else "")
         try:
