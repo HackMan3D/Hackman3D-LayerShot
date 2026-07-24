@@ -7,7 +7,7 @@ and triggers an iPhone, an Android phone or a compatible DJI camera.
 No iPhone application is required. Once the ESP32 has been configured, the Mac
 or PC application can be closed during the entire print.
 
-![LayerShot printer dashboard](docs/images/printer-dashboard.png)
+![LayerShot camera and firmware selection on macOS](docs/images/installation-camera-selection.png)
 
 ## Download — version 0.6.0
 
@@ -46,6 +46,10 @@ matching firmware:
 | iPhone | iPhones supporting Bluetooth keyboard/remote volume keys | Bluetooth HID `Volume +` | Keep Apple's Camera app open |
 | Android | Phones whose camera app can assign a volume key to the shutter | Bluetooth HID `Volume +` | Enable “volume button = shutter” when required; support depends on the phone and camera app |
 | DJI | DJI Osmo Action 4, Osmo Action 5 Pro, Osmo Action 6 and Osmo 360 | Official DJI BLE camera protocol | Put the camera in Photo mode and approve pairing on its screen |
+
+> **Testing note:** DJI camera support is currently in its public testing phase.
+> The compatible models above are based on DJI's official protocol. Please test
+> the shutter before starting a print and send feedback if you encounter a problem.
 
 DJI Osmo Action 3 and older models are not listed as compatible by the official
 protocol demo used by this project. Smartphone compatibility can vary because
