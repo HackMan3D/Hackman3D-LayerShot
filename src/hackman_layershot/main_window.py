@@ -705,6 +705,13 @@ class MainWindow(QMainWindow):
                             connection.rts = False
                             time.sleep(1.5)
                             connection.reset_input_buffer()
+                            # Terminate any partial boot/provisioning line left
+                            # in the ESP receive buffer before sending the real
+                            # configuration. This is needed by both Arduino and
+                            # ESP-IDF firmware after a USB reset.
+                            connection.write(b"\n")
+                            connection.flush()
+                            time.sleep(.2)
                             opened_until=min(deadline,time.monotonic()+12)
                             answer=bytearray()
                             next_send=0
@@ -718,8 +725,13 @@ class MainWindow(QMainWindow):
                                     save_wifi_password(ssid, wifi_password)
                                     return True
                                 if b"LAYERSHOT_CONFIG_ERROR" in answer:
-                                    raise ConnectionError(
-                                        "The ESP32 rejected the Wi-Fi configuration.")
+                                    last_error = (
+                                        "The ESP32 rejected the Wi-Fi configuration. "
+                                        "The app is retrying with a clean USB line.")
+                                    answer.clear()
+                                    connection.write(b"\n")
+                                    connection.flush()
+                                    next_send=time.monotonic()+.25
                             last_error=bytes(answer).decode(errors="replace").strip()
                     except Exception as exc:
                         last_error=str(exc)
