@@ -22,7 +22,7 @@ if (-not (Test-Path ".venv-windows-x86")) {
 }
 & ".venv-windows-x86\Scripts\python.exe" -m pip install `
     "PySide2==5.15.2.1" "pyserial>=3.5,<4" "esptool==4.8.1" `
-    "cryptography==3.4.8" "pyinstaller>=6.8,<7"
+    "cryptography==3.4.8" "pyinstaller>=6.8,<7" "imageio-ffmpeg==0.6.0"
 if ($LASTEXITCODE -ne 0) { throw "Windows x86 dependency installation failed." }
 Remove-Item build -Recurse -Force -ErrorAction SilentlyContinue
 $env:LAYERSHOT_BUILD_ARCH = "x86"

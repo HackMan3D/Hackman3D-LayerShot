@@ -236,15 +236,21 @@ static bool parse_layer_json(const char *body, int *current, int *total, char *s
     cJSON *root = cJSON_Parse(body); if (!root) return false;
     cJSON *result=cJSON_GetObjectItem(root,"result"), *status=result?cJSON_GetObjectItem(result,"status"):NULL;
     cJSON *info=status?cJSON_GetObjectItem(status,"print_stats"):NULL;
+    cJSON *virtual_sd=status?cJSON_GetObjectItem(status,"virtual_sdcard"):NULL;
     cJSON *display=status?cJSON_GetObjectItem(status,"display_status"):NULL;
     cJSON *layer=info?cJSON_GetObjectItem(info,"info"):NULL;
     cJSON *cur=layer?cJSON_GetObjectItem(layer,"current_layer"):NULL;
     cJSON *tot=layer?cJSON_GetObjectItem(layer,"total_layer"):NULL;
+    cJSON *sd_cur=virtual_sd?cJSON_GetObjectItem(virtual_sd,"layer"):NULL;
+    cJSON *sd_tot=virtual_sd?cJSON_GetObjectItem(virtual_sd,"layer_count"):NULL;
     cJSON *st=info?cJSON_GetObjectItem(info,"state"):NULL;
     if (cJSON_IsNumber(cur)) *current=cur->valueint;
+    else if (cJSON_IsNumber(sd_cur)) *current=sd_cur->valueint;
     if (cJSON_IsNumber(tot)) *total=tot->valueint;
+    else if (cJSON_IsNumber(sd_tot)) *total=sd_tot->valueint;
     if (cJSON_IsString(st)) strlcpy(state, st->valuestring, size);
-    bool ok = cJSON_IsNumber(cur) || display != NULL; cJSON_Delete(root); return ok;
+    bool ok = cJSON_IsNumber(cur) || cJSON_IsNumber(sd_cur) || display != NULL;
+    cJSON_Delete(root); return ok;
 }
 
 void layershot_poll_printer(void) {

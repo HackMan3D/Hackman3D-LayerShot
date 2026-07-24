@@ -26,8 +26,8 @@ static void colour(uint8_t r, uint8_t g, uint8_t b) {
         led_strip_set_pixel(led, 0, r, g, b);
         led_strip_refresh(led);
     }
-    // C3-Zero-compatible boards exist with the onboard RGB pixel on either
-    // GPIO10 or GPIO8. Drive both, matching the proven phone firmware.
+    // The working Arduino firmware drives both variants of the C3-Zero board:
+    // the official board uses GPIO10, while some compatible boards use GPIO8.
     if (led_alt) {
         led_strip_set_pixel(led_alt, 0, r, g, b);
         led_strip_refresh(led_alt);
@@ -131,13 +131,22 @@ void app_main(void) {
     if (nvs == ESP_ERR_NVS_NO_FREE_PAGES || nvs == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase(); nvs_flash_init();
     }
-    led_strip_config_t strip = {.strip_gpio_num=RGB_LED,.max_leds=1,.led_model=LED_MODEL_WS2812,.color_component_format=LED_STRIP_COLOR_COMPONENT_FMT_GRB};
-    // One WS2812 pixel needs 24 symbols. Keep each channel at 32 so the C3 has
-    // enough RMT memory to drive both possible onboard-LED pins.
-    led_strip_rmt_config_t rmt = {.clk_src=RMT_CLK_SRC_DEFAULT,.resolution_hz=10000000,.mem_block_symbols=32,.flags.with_dma=false};
-    led_strip_new_rmt_device(&strip,&rmt,&led);
-    strip.strip_gpio_num = RGB_LED_ALT;
-    led_strip_new_rmt_device(&strip,&rmt,&led_alt);
+    led_strip_config_t strip = {
+        .strip_gpio_num=RGB_LED, .max_leds=1,
+        .led_model=LED_MODEL_WS2812,
+        .color_component_format=LED_STRIP_COLOR_COMPONENT_FMT_GRB
+    };
+    led_strip_rmt_config_t rmt = {
+        .clk_src=RMT_CLK_SRC_DEFAULT,
+        .resolution_hz=10000000,
+        .mem_block_symbols=48,
+        .flags.with_dma=false,
+    };
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip, &rmt, &led));
+
+    led_strip_config_t strip_alt = strip;
+    strip_alt.strip_gpio_num = RGB_LED_ALT;
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_alt, &rmt, &led_alt));
     colour(35,0,0);
     gpio_config_t button={.pin_bit_mask=1ULL<<BOOT_BUTTON,.mode=GPIO_MODE_INPUT,.pull_up_en=GPIO_PULLUP_ENABLE};
     gpio_config(&button);

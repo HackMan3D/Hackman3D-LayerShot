@@ -867,10 +867,16 @@ class MainWindow(QMainWindow):
         f,_=QFileDialog.getSaveFileName(self,self.T("output"),"layershot-timelapse.mp4","MP4 video (*.mp4)")
         if f:self.video.setText(f)
     def render_video(self):
-        ffmpeg=shutil.which("ffmpeg")
+        try:
+            from imageio_ffmpeg import get_ffmpeg_exe
+            ffmpeg = get_ffmpeg_exe()
+        except Exception:
+            ffmpeg = shutil.which("ffmpeg")
         photos=Path(self.photos.text()); output=self.video.text()
         if not ffmpeg or not photos.is_dir() or not output:
-            QMessageBox.warning(self,"LayerShot","Select a photo folder and output file. FFmpeg must be installed."); return
+            QMessageBox.warning(
+                self, "LayerShot",
+                "Select a photo folder and an output file."); return
         images=[p for p in photos.iterdir() if p.suffix.lower() in (".jpg",".jpeg",".png")]
         images=sorted(images,key=(lambda p:p.stat().st_mtime) if self.sort_order.currentIndex() else (lambda p:p.name.lower()))
         if not images: QMessageBox.warning(self,"LayerShot","No compatible photos found."); return

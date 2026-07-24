@@ -10,7 +10,8 @@ def asset_path(name):
     root = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
     return root / "assets" / name
 
-def request_json(url, method="GET", payload=None, timeout=4, form=False):
+def request_json(url, method="GET", payload=None, timeout=4, form=False,
+                 allow_text=False):
     # Independently distributed macOS applications signed ad hoc can be denied
     # direct local-network sockets without macOS ever displaying its permission
     # dialog. The system curl executable remains able to perform the request.
@@ -49,7 +50,13 @@ def request_json(url, method="GET", payload=None, timeout=4, form=False):
                 while time.monotonic() < deadline:
                     if os.path.exists(output_path) and os.path.getsize(output_path):
                         with open(output_path, encoding="utf-8") as response:
-                            return json.load(response)
+                            raw = response.read()
+                        try:
+                            return json.loads(raw)
+                        except json.JSONDecodeError:
+                            if allow_text:
+                                return {"message": raw.strip()}
+                            raise
                     if os.path.exists(error_path) and os.path.getsize(error_path):
                         with open(error_path, encoding="utf-8") as error_file:
                             detail = error_file.read().strip()
@@ -72,7 +79,14 @@ def request_json(url, method="GET", payload=None, timeout=4, form=False):
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as res:
         raw = res.read()
-        return json.loads(raw) if raw else {}
+        if not raw:
+            return {}
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            if allow_text:
+                return {"message": raw.decode(errors="replace").strip()}
+            raise
 
 def normalize_host(host):
     value = host.strip()
@@ -397,7 +411,8 @@ def esp_post(host, endpoint, payload=None):
     base, _ = _esp_base(host)
     return request_json(
         f"{base}/{endpoint.lstrip('/')}",
-        method="POST", payload=payload or {}, timeout=5, form=True)
+        method="POST", payload=payload or {}, timeout=5, form=True,
+        allow_text=True)
 
 def esp_status(host):
     base, status = _esp_base(host)
