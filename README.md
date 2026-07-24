@@ -192,7 +192,7 @@ address.
 Video export currently requires FFmpeg to be installed and should be considered
 a beta feature until it has been validated on a wider range of photo sets.
 
-![LayerShot timelapse controls](docs/images/timelapse-controls.png)
+
 
 ## Supported languages
 
