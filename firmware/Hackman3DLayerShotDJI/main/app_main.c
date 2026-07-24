@@ -47,17 +47,32 @@ static void main_task(void *unused) {
 }
 
 static void provisioning_task(void *unused) {
-    char line[512];
+    char line[512] = {0};
+    char chunk[128];
+    size_t used = 0;
     while (true) {
-        if (fgets(line, sizeof(line), stdin)) {
-            if (layershot_apply_serial_config(line)) {
-                puts("LAYERSHOT_CONFIG_OK");
-                fflush(stdout);
-                vTaskDelay(pdMS_TO_TICKS(300));
-                esp_restart();
-            } else if (strstr(line, "LAYERSHOT_CONFIG")) {
-                puts("LAYERSHOT_CONFIG_ERROR");
-                fflush(stdout);
+        if (fgets(chunk, sizeof(chunk), stdin)) {
+            size_t length = strlen(chunk);
+            if (used + length >= sizeof(line)) {
+                used = 0;
+                line[0] = 0;
+            }
+            memcpy(line + used, chunk, length + 1);
+            used += length;
+            // USB Serial/JTAG can return a partial line even when fgets() is
+            // used. Keep every fragment until the newline arrives.
+            if (used && line[used - 1] == '\n') {
+                if (layershot_apply_serial_config(line)) {
+                    puts("LAYERSHOT_CONFIG_OK");
+                    fflush(stdout);
+                    vTaskDelay(pdMS_TO_TICKS(300));
+                    esp_restart();
+                } else if (strstr(line, "LAYERSHOT_CONFIG")) {
+                    puts("LAYERSHOT_CONFIG_ERROR");
+                    fflush(stdout);
+                }
+                used = 0;
+                line[0] = 0;
             }
         } else {
             clearerr(stdin);

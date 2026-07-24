@@ -174,15 +174,51 @@ bool layershot_apply_serial_config(const char *line) {
             fields[count++] = cursor + 1;
         }
     }
+    // USB provisioning deliberately sends a blank line first to clear any
+    // partial input left by the bootloader. Never dereference fields that were
+    // not present: doing so reset the ESP32 before the real configuration
+    // command could arrive.
+    if (count != 10 || !fields[9]) {
+        printf("LAYERSHOT_CONFIG_DIAG:FIELDS_%d\n", count);
+        return false;
+    }
     fields[9][strcspn(fields[9], "\r\n")] = 0;
-    if (count != 10 || strcmp(fields[0], "LAYERSHOT_CONFIG") ||
-        strcmp(fields[9], "dji") || !decode_hex(fields[1], config.ssid, sizeof(config.ssid)) ||
-        !decode_hex(fields[2], config.password, sizeof(config.password))) return false;
+    if (strcmp(fields[0], "LAYERSHOT_CONFIG")) {
+        puts("LAYERSHOT_CONFIG_DIAG:HEADER");
+        return false;
+    }
+    if (strcmp(fields[9], "dji")) {
+        puts("LAYERSHOT_CONFIG_DIAG:CAMERA");
+        return false;
+    }
+    if (!decode_hex(fields[1], config.ssid, sizeof(config.ssid))) {
+        puts("LAYERSHOT_CONFIG_DIAG:SSID");
+        return false;
+    }
+    if (!decode_hex(fields[2], config.password, sizeof(config.password))) {
+        puts("LAYERSHOT_CONFIG_DIAG:PASSWORD");
+        return false;
+    }
     strlcpy(config.printer, fields[3], sizeof(config.printer));
     config.printer_port = atoi(fields[4]); config.every_layers = atoi(fields[5]);
     config.skip_layers = atoi(fields[6]); config.stop_before_end = atoi(fields[7]);
     config.delay_ms = atoi(fields[8]); config.autonomous = true;
-    if (!config.ssid[0] || !config.printer[0] || !config.printer_port || !config.every_layers) return false;
+    if (!config.ssid[0]) {
+        puts("LAYERSHOT_CONFIG_DIAG:EMPTY_SSID");
+        return false;
+    }
+    if (!config.printer[0]) {
+        puts("LAYERSHOT_CONFIG_DIAG:EMPTY_PRINTER");
+        return false;
+    }
+    if (!config.printer_port) {
+        puts("LAYERSHOT_CONFIG_DIAG:PORT");
+        return false;
+    }
+    if (!config.every_layers) {
+        puts("LAYERSHOT_CONFIG_DIAG:LAYER_INTERVAL");
+        return false;
+    }
     save_config();
     return true;
 }

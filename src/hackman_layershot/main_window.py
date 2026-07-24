@@ -711,6 +711,14 @@ class MainWindow(QMainWindow):
                     try:
                         esptool.main(mac_esptool_arguments)
                         break
+                    except SystemExit as exc:
+                        # Click/esptool reports a successful command with
+                        # SystemExit(0). Continue with USB provisioning instead
+                        # of silently terminating the QRunnable.
+                        if exc.code in (None, 0):
+                            break
+                        raise RuntimeError(
+                            f"ESP32 flashing stopped with exit code {exc.code}.") from exc
                     except Exception as exc:
                         last_error = str(exc)
                         port_busy = any(marker in last_error.lower() for marker in (
