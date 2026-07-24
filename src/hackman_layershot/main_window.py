@@ -644,6 +644,8 @@ class MainWindow(QMainWindow):
             self.T("hide_password") if checked else self.T("show_password"))
 
     def flash_firmware(self):
+        if getattr(self, "_flash_in_progress", False):
+            return
         port=self.port_combo.currentText()
         ssid=self.ssid.currentText().strip()
         wifi_password=self.password.text()
@@ -672,6 +674,8 @@ class MainWindow(QMainWindow):
                 self, "LayerShot",
                 self.T("installation_incomplete") + "\n\n• " + "\n• ".join(missing))
             return
+        self._flash_in_progress = True
+        self.install_button.setEnabled(False)
         self.flash_progress.setRange(0,0)
         printer=self.printers[0]
         def task():
@@ -682,6 +686,7 @@ class MainWindow(QMainWindow):
             mac_esptool_executable = asset_path("esptool-macos")
             esptool_arguments = [
                 "--chip", "esp32c3", "--port", port,
+                "--baud", "460800",
                 "--before", "default-reset", "--after", "hard-reset",
                 "write-flash", "0x0", str(fw),
             ]
@@ -698,13 +703,35 @@ class MainWindow(QMainWindow):
                 mac_esptool_arguments = list(esptool_arguments)
                 mac_esptool_arguments.insert(
                     mac_esptool_arguments.index("write-flash"), "--no-stub")
-                try:
-                    subprocess.run(
-                        [str(mac_esptool_executable), *mac_esptool_arguments],
-                        check=True, capture_output=True, text=True)
-                except subprocess.CalledProcessError as exc:
-                    detail = (exc.stderr or exc.stdout or str(exc)).strip()
-                    raise RuntimeError(detail) from exc
+                flash_error = ""
+                for attempt in range(8):
+                    try:
+                        result = subprocess.run(
+                            [str(mac_esptool_executable), *mac_esptool_arguments],
+                            capture_output=True, text=True, timeout=180)
+                    except subprocess.TimeoutExpired as exc:
+                        raise RuntimeError(
+                            "The ESP32 flash did not finish within three minutes. "
+                            "Unplug and reconnect the board, then try again.") from exc
+                    if result.returncode == 0:
+                        break
+                    flash_error = (result.stderr or result.stdout or "").strip()
+                    port_busy = any(marker in flash_error.lower() for marker in (
+                        "resource temporarily unavailable",
+                        "could not exclusively lock port",
+                        "port is busy",
+                    ))
+                    if not port_busy:
+                        raise RuntimeError(flash_error)
+                    # A previous flash attempt or the USB port refresh can hold
+                    # the device briefly. Let macOS release it and retry.
+                    time.sleep(1.25)
+                else:
+                    raise RuntimeError(
+                        "The ESP32 USB port is still busy. Close Arduino IDE, "
+                        "Serial Monitor and any other LayerShot window, unplug "
+                        "and reconnect the ESP32, then try again.\n\n" +
+                        flash_error)
             else:
                 import esptool
                 esptool.main(esptool_arguments)
@@ -758,8 +785,20 @@ class MainWindow(QMainWindow):
                         last_error=str(exc)
                 time.sleep(0.8)
             raise ConnectionError("The firmware was installed, but the USB configuration was not acknowledged. "+last_error)
-        self.run(task,done=lambda _: (self.flash_progress.setRange(0,100),self.flash_progress.setValue(100),QMessageBox.information(self,"LayerShot","Firmware and settings installed. The ESP32 is connecting to Wi-Fi.")),
-                 failed=lambda e:(self.flash_progress.setRange(0,100),QMessageBox.warning(self,"LayerShot",e)))
+        def finish_flash():
+            self._flash_in_progress = False
+            self.install_button.setEnabled(True)
+            self.flash_progress.setRange(0,100)
+        def flash_done(_):
+            finish_flash()
+            self.flash_progress.setValue(100)
+            QMessageBox.information(
+                self, "LayerShot",
+                "Firmware and settings installed. The ESP32 is connecting to Wi-Fi.")
+        def flash_failed(error):
+            finish_flash()
+            QMessageBox.warning(self, "LayerShot", error)
+        self.run(task, done=flash_done, failed=flash_failed)
 
     def configure_esp(self):
         host=self.esp_host.text().strip().removeprefix("http://").rstrip("/")
