@@ -10,6 +10,11 @@ def asset_path(name):
     root = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
     return root / "assets" / name
 
+def latest_layershot_release():
+    return request_json(
+        "https://api.github.com/repos/HackMan3D/Hackman3D-LayerShot/releases/latest",
+        timeout=5)
+
 def request_json(url, method="GET", payload=None, timeout=4, form=False,
                  allow_text=False):
     # Independently distributed macOS applications signed ad hoc can be denied
@@ -115,6 +120,13 @@ def printer_status(host, port):
                 raise ValueError("Moonraker returned an unexpected response.")
             stats = result.get("print_stats", {})
             virtual_sd = result.get("virtual_sdcard", {})
+            virtual_active = bool(virtual_sd.get("is_active"))
+            file_position = virtual_sd.get("file_position") or 0
+            file_size = virtual_sd.get("file_size") or 0
+            if (stats.get("state") in (None, "", "standby")
+                    and (virtual_active or (
+                        file_size and 0 < file_position < file_size))):
+                stats["state"] = "preparing"
             if virtual_sd.get("layer") is not None:
                 stats.setdefault("info", {})["current_layer"] = virtual_sd.get("layer")
             if virtual_sd.get("layer_count"):
@@ -418,6 +430,41 @@ def esp_status(host):
     base, status = _esp_base(host)
     status["_resolved_address"] = urllib.parse.urlsplit(base).hostname
     return status
+
+def discover_esps(seed_hosts=()):
+    candidates = [str(host).strip() for host in seed_hosts if str(host).strip()]
+    candidates.extend(_arp_addresses())
+    for network in _local_ipv4_networks():
+        candidates.extend(str(host) for host in network.hosts())
+    candidates = list(dict.fromkeys(candidates))
+
+    def probe(host):
+        try:
+            with socket.create_connection((host, 80), timeout=.18):
+                pass
+        except OSError:
+            return None
+        try:
+            status = request_json(f"http://{host}/status", timeout=1)
+            if status.get("name") != "Hackman3D LayerShot":
+                return None
+            status["_resolved_address"] = host
+            return status
+        except Exception:
+            return None
+
+    found = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        for status in executor.map(probe, candidates):
+            if status:
+                found.append(status)
+    unique = {
+        status["_resolved_address"]: status for status in found
+    }
+    return sorted(
+        unique.values(),
+        key=lambda status: tuple(
+            int(part) for part in status["_resolved_address"].split(".")))
 
 def serial_ports():
     try:

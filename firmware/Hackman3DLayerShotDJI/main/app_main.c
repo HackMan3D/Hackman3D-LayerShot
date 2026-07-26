@@ -87,6 +87,7 @@ static void main_task(void *unused) {
                 layershot_camera_request_pair(false);
         }
         if (++poll_ticks >= 20) { poll_ticks = 0; layershot_poll_printer(); }
+        layershot_process_shutter_timer();
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

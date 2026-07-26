@@ -1,0 +1,42 @@
+# Changelog
+
+## 1.1.0 — 2026-07-26
+
+### Desktop application
+
+- Added one guided installation flow shared by macOS and 32/64-bit Windows.
+- Installation sections now unlock only after the preceding step is complete.
+- Added visible application version information and GitHub update checks.
+- Added independent discovery and control of multiple LayerShot ESP32 devices.
+- Made the ESP dashboard open immediately using the selected device address.
+- Corrected printer selection during provisioning when several printers exist.
+- Added printer-derived ESP hostnames such as
+  `hackman-layershot-studiosparkx.local`.
+- Added an explicit **Preparing / calibration** printer state.
+
+### Cameras and firmware
+
+- Added GoPro support through the official Open GoPro Bluetooth API.
+- Added experimental Insta360 GPS Remote emulation.
+- Retained phone Bluetooth HID and validated DJI Osmo Action support.
+- Added a 1–5 second shutter delay, with 3 seconds selected by default.
+- Displayed the stored delay in the ESP status panel.
+- Added matching pairing, shutter, LED and forget-camera controls.
+
+### Timelapse
+
+- Added more output formats and codecs.
+- Added landscape, square, portrait and social-media crop presets.
+- Added a live first-frame framing preview.
+- Proposed a generic output name directly in the selected photo folder.
+- Bundled FFmpeg in packaged applications.
+
+### Documentation and distribution
+
+- Added ready-to-install macOS and combined 32/64-bit Windows downloads.
+- Added standalone recovery firmware for phone, DJI, GoPro and Insta360.
+- Added documented security-warning workarounds for unsigned builds.
+- Added sanitized screenshots using fictitious names and reserved IP addresses.
+- Expanded compatibility, installation, pairing, autonomous operation, privacy
+  and troubleshooting documentation.
+
