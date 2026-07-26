@@ -9,7 +9,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "dashboard.h"
 
-static const char *FIRMWARE_VERSION = "1.8.0";
+static const char *FIRMWARE_VERSION = "2.1.0";
 static const char *HOSTNAME = "hackman-layershot";
 static const char *BLE_NAME = "Hackman3D LayerShot";
 static const char *SETUP_AP = "Hackman3D-LayerShot-Setup";
@@ -36,12 +36,15 @@ uint32_t lastBlinkAt = 0;
 bool blinkOn = false;
 String serialLine;
 String cameraType = "iphone";
+String deviceHostname = HOSTNAME;
 String printerHost;
 uint16_t printerPort = 4408;
 uint16_t captureEvery = 1;
 uint16_t skipLayers = 0;
 uint16_t stopAfterLayer = 0;
-uint16_t stabilizationMs = 1000;
+uint16_t stabilizationMs = 3000;
+bool shutterPending = false;
+uint32_t shutterDueAt = 0;
 bool autonomousEnabled = false;
 int lastPrinterLayer = -1;
 int printerTotalLayers = -1;
@@ -108,7 +111,7 @@ void setupWeb() {
   web.on("/status", HTTP_GET, [] {
     String ip = WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
     String body = "{\"ok\":true,\"name\":\"" + String(BLE_NAME) + "\",\"firmware\":\"" +
-      FIRMWARE_VERSION + "\",\"hostname\":\"" + HOSTNAME + ".local\",\"ip\":\"" + ip +
+      FIRMWARE_VERSION + "\",\"hostname\":\"" + deviceHostname + ".local\",\"ip\":\"" + ip +
       "\",\"ssid\":\"" + jsonEscape(WiFi.SSID()) + "\",\"rssi\":" + String(WiFi.RSSI()) +
       ",\"wifi\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") +
       ",\"camera_type\":\"" + jsonEscape(cameraType) + "\"" +
@@ -121,6 +124,7 @@ void setupWeb() {
       ",\"printer_connected\":" + String(printerConnected ? "true" : "false") +
       ",\"printer_state\":\"" + jsonEscape(printerState) + "\"" +
       ",\"printer_http_code\":" + String(printerHttpCode) +
+      ",\"shutter_delay_ms\":" + String(stabilizationMs) +
       ",\"current_layer\":" + String(lastPrinterLayer) +
       ",\"total_layers\":" + String(printerTotalLayers) +
       ",\"commands\":" + String(commandCount) +
@@ -270,6 +274,8 @@ void handleSerialProvisioning() {
         String newCamera = serialField(serialLine, 9);
         if (newCamera != "android") newCamera = "iphone";
         preferences.putString("camera", newCamera);
+        String newHostname = serialField(serialLine, 10);
+        if (!newHostname.isEmpty()) preferences.putString("hostname", newHostname);
         preferences.putBool("autonomous", true);
         preferences.end();
         Serial.println("LAYERSHOT_CONFIG_OK");
@@ -326,8 +332,8 @@ void pollPrinter() {
       if (lastPrinterLayer >= 0 && currentLayer > lastPrinterLayer && currentLayer > skipLayers &&
           (currentLayer - skipLayers) % max(1, (int)captureEvery) == 0 &&
           (stopAfterLayer == 0 || currentLayer <= stopAfterLayer)) {
-        delay(stabilizationMs);
-        triggerShutter();
+        shutterPending = true;
+        shutterDueAt = millis() + stabilizationMs;
       }
       lastPrinterLayer = currentLayer;
     } else if (!layerMonitoringActive) {
@@ -340,13 +346,20 @@ void pollPrinter() {
   http.end();
 }
 
+void updateScheduledShutter() {
+  if (shutterPending && (int32_t)(millis() - shutterDueAt) >= 0) {
+    shutterPending = false;
+    triggerShutter();
+  }
+}
+
 void connectWiFi() {
   preferences.begin("layershot", true);
   String ssid = preferences.getString("ssid", "");
   String password = preferences.getString("password", "");
   preferences.end();
 
-  WiFi.setHostname(HOSTNAME);
+  WiFi.setHostname(deviceHostname.c_str());
   if (!ssid.isEmpty()) {
     wifiConnecting = true;
     WiFi.mode(WIFI_STA);
@@ -369,9 +382,9 @@ void connectWiFi() {
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(SETUP_AP);
   } else {
-    MDNS.begin(HOSTNAME);
+    MDNS.begin(deviceHostname.c_str());
     MDNS.addService("http", "tcp", 80);
-    ArduinoOTA.setHostname(HOSTNAME);
+    ArduinoOTA.setHostname(deviceHostname.c_str());
     ArduinoOTA.setPassword("layershot");
     ArduinoOTA.begin();
     otaReady = true;
@@ -427,8 +440,9 @@ void setup() {
   captureEvery = preferences.getUShort("every", 1);
   skipLayers = preferences.getUShort("skip", 0);
   stopAfterLayer = preferences.getUShort("stop", 0);
-  stabilizationMs = preferences.getUShort("delay", 1000);
+  stabilizationMs = preferences.getUShort("delay", 3000);
   cameraType = preferences.getString("camera", "iphone");
+  deviceHostname = preferences.getString("hostname", HOSTNAME);
   if (cameraType != "android") cameraType = "iphone";
   autonomousEnabled = preferences.getBool("autonomous", false);
   preferences.end();
@@ -446,5 +460,6 @@ void loop() {
   updateButton();
   updateLED();
   pollPrinter();
+  updateScheduledShutter();
   delay(5);
 }

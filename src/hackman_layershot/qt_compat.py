@@ -5,7 +5,7 @@ try:
         QObject, QRunnable, QSettings, QSize, QThreadPool, QTimer, Qt, Signal,
         QUrl,
     )
-    from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
+    from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap, QTransform
     from PySide6.QtWidgets import (
         QApplication, QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout,
         QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QProgressBar,
@@ -17,7 +17,7 @@ except ImportError:
         QObject, QRunnable, QSettings, QSize, QThreadPool, QTimer, Qt, Signal,
         QUrl,
     )
-    from PySide2.QtGui import QDesktopServices, QIcon, QPixmap
+    from PySide2.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap, QTransform
     from PySide2.QtWidgets import (
         QApplication, QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout,
         QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QProgressBar,

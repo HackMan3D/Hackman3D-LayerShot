@@ -2,21 +2,24 @@
 
 Hackman3D LayerShot turns a small ESP32-C3 into an autonomous Bluetooth camera
 shutter for 3D-printing timelapses. It detects layer changes through Moonraker
-and triggers an iPhone, an Android phone or a compatible DJI camera.
+and triggers an iPhone, Android phone, DJI camera, GoPro or selected
+experimental Insta360 camera.
 
 No iPhone application is required. Once the ESP32 has been configured, the Mac
 or PC application can be closed during the entire print.
 
-![LayerShot camera and firmware selection on macOS](docs/images/installation-camera-selection.png)
+![LayerShot printer dashboard](docs/images/printer-dashboard.png)
 
-## Download — version 0.6.0
+## Download — version 1.1.0
 
 No compilation or Arduino IDE setup is required:
 
-- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-macOS-0.6.0.zip)
-- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-Windows-Setup-0.6.0.exe)
-- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
-- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v0.6.0/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-macOS-1.1.0.zip)
+- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-Windows-Setup-1.1.0.exe)
+- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
+- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
+- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
+- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
 
 > **Security notice:** these downloads are not yet signed with Apple and
 > Microsoft developer certificates. macOS Gatekeeper or Windows SmartScreen may
@@ -43,6 +46,24 @@ automatically. There is no source code to edit, no Arduino IDE to install and no
 firmware file to select. Choose the camera type, follow its pairing instructions
 and LayerShot is ready to photograph every layer.
 
+![Guided printer installation](docs/images/guided-installation.png)
+
+## What is new in 1.1.0
+
+- GoPro support through the official Open GoPro Bluetooth API;
+- experimental Insta360 GPS Remote emulation for popular camera families;
+- a selectable 1–5 second shutter delay, with 3 seconds selected by default;
+- multiple LayerShot ESP32 devices can be discovered and managed independently;
+- every ESP receives a readable hostname derived from its printer name;
+- the selected printer is now always written to the ESP during installation;
+- installation sections unlock in order, making incomplete steps unambiguous;
+- calibration is shown as **Preparing / calibration** instead of standby;
+- the stored shutter delay is visible in the ESP32 status panel;
+- the ESP dashboard opens immediately, without waiting for a full network scan;
+- update checks compare the installed application with the latest GitHub release;
+- the timelapse tool includes more formats, social-media crops and a live first-frame preview;
+- macOS and Windows use the same interface, features and visible version number.
+
 ## Camera compatibility
 
 The Installation page clearly shows these details before installing the
@@ -53,10 +74,14 @@ matching firmware:
 | iPhone | iPhones supporting Bluetooth keyboard/remote volume keys | Bluetooth HID `Volume +` | Keep Apple's Camera app open |
 | Android | Phones whose camera app can assign a volume key to the shutter | Bluetooth HID `Volume +` | Enable “volume button = shutter” when required; support depends on the phone and camera app |
 | DJI | DJI Osmo Action 4, Osmo Action 5 Pro, Osmo Action 6 and Osmo 360 | Official DJI BLE camera protocol | Put the camera in Photo mode and approve pairing on its screen |
+| GoPro | HERO9 Black, HERO10 Black/Bones, HERO11 Black/Mini and HERO12 Black; newer Open GoPro models require LayerShot validation | Official Open GoPro BLE API | Put the camera in Photo mode and open its Connect Device screen |
+| Insta360 — experimental | X3, X4, X5, Ace, Ace Pro and Ace Pro 2 families | Experimental emulation of an Insta360 GPS Bluetooth remote | Compatibility depends on the exact camera firmware; test before printing |
 
-> **Testing note:** DJI camera support is currently in its public testing phase.
-> The compatible models above are based on DJI's official protocol. Please test
-> the shutter before starting a print and send feedback if you encounter a problem.
+> **DJI validation:** DJI camera support has been successfully validated by a
+> LayerShot user on compatible hardware. Testing the shutter before a long
+> print is still recommended.
+
+![Camera compatibility and shutter delay](docs/images/camera-selection.png)
 
 DJI Osmo Action 3 and older models are not listed as compatible by the official
 protocol demo used by this project. Smartphone compatibility can vary because
@@ -66,6 +91,8 @@ manufacturers are free to change how their Camera app handles volume keys.
 
 - controls supported phone Camera apps through Bluetooth HID (`Volume +`);
 - controls compatible DJI cameras through the official DJI BLE protocol;
+- controls compatible GoPro cameras through the official Open GoPro BLE API;
+- offers experimental Insta360 Bluetooth-remote support for popular models;
 - detects layer changes autonomously through the printer's Moonraker API;
 - supports multiple printers in separate dashboard cards;
 - discovers compatible Klipper/Moonraker printers on the local network;
@@ -96,6 +123,17 @@ local network, including:
 Other Moonraker/Klipper printers can be added with the generic profile. Exact
 camera and layer-count availability depends on the API exposed by the printer.
 
+## Printer dashboard
+
+Every configured printer has its own card. LayerShot shows the detected model,
+network endpoint, G-code file, current state, layer count and progress. A printer
+that is homing, heating or calibrating is reported as **Preparing / calibration**
+instead of standby. Multiple printers are monitored independently, and camera
+previews remain local when the printer exposes a compatible stream.
+
+The documentation screenshots intentionally use the reserved example networks
+`192.0.2.0/24`. They contain no real printer address, Wi-Fi name or password.
+
 ## Requirements
 
 - an ESP32-C3 board with 4 MB flash;
@@ -122,6 +160,12 @@ camera and layer-count availability depends on the API exposed by the printer.
 Wi-Fi credentials are never embedded in the application or downloadable
 firmware. They are written only to the configured ESP32 and, when explicitly
 retrieved or saved, to the current user's protected operating-system keychain.
+
+The next installation section stays locked until the current section has been
+completed. When several printers are saved, the printer selected in step 1 is
+the one provisioned into the ESP. Its display name also creates a unique local
+address: `Studio SparkX` becomes
+`http://hackman-layershot-studiosparkx.local`.
 
 ## Pair the camera
 
@@ -160,6 +204,22 @@ Bluetooth settings before pairing again.
    the DJI screen.
 4. Test the shutter. The ESP32 stores the pairing and reconnects automatically.
 
+### GoPro
+
+1. Select **Photo** mode and open the GoPro's **Connections > Connect Device**
+   screen.
+2. Start the GoPro search in LayerShot or hold **BOOT** for three seconds.
+3. Keep the camera nearby and approve pairing if requested.
+4. Test the shutter. LayerShot stores the Bluetooth bond and reconnects
+   automatically.
+
+### Insta360 — experimental
+
+1. Open **Settings > Bluetooth Remote** on the camera.
+2. Select **Insta360 GPS Remote**, then start pairing in LayerShot.
+3. Keep the camera in Photo mode and test the shutter before printing.
+4. Report the exact camera model and firmware version when providing feedback.
+
 ## LED colours
 
 | Colour | Meaning |
@@ -172,25 +232,40 @@ Bluetooth settings before pairing again.
 ## Autonomous operation
 
 The ESP32 directly monitors the configured printer. The desktop application and
-computer do not need to remain open while printing. The ESP32 web dashboard is
+computer do not need to remain open while printing. The ESP32 web dashboard
+uses the selected printer name. For example, a printer named `SparkX i7` is
 available at:
 
-`http://hackman-layershot.local`
+`http://hackman-layershot-sparkxi7.local`
 
-Some routers publish a numbered `.lan` address instead. The desktop application
+Each ESP therefore has a distinct, readable address. Some routers publish a
+numbered `.lan` address instead. The desktop application
 automatically searches for the LayerShot device and remembers the working local
 address.
 
+## ESP32 status and multiple devices
+
+The ESP32 page discovers LayerShot boards on the local network and lists each
+one with its IP address, assigned printer and camera type. Selecting a device
+updates its firmware, Wi-Fi, Bluetooth, printer, layer and shutter-delay
+information. Pairing, shutter, LED and forget-camera controls target only the
+selected board.
+
+![Multiple LayerShot ESP32 devices](docs/images/multi-esp-controls.png)
+
 ## Create a timelapse
 
-1. Import the folder containing the iPhone photos.
-2. Choose the output MP4 file.
-3. Select frame rate, aspect ratio, framing, crop position, rotation, background,
-   quality and H.264/H.265 codec.
-4. Start the video export.
+1. Import the folder containing the camera photos.
+2. Keep the proposed output name in the source folder or edit it.
+3. Select frame rate, output format, aspect ratio, framing, crop position,
+   rotation, background, quality and codec.
+4. Use the first-frame preview to check how the selected social-media format
+   will be filled.
+5. Start the video export.
 
-Video export currently requires FFmpeg to be installed and should be considered
-a beta feature until it has been validated on a wider range of photo sets.
+LayerShot uses its bundled FFmpeg when available and can also use a system
+installation. Landscape, square, portrait, Story/Reel and other common social
+formats can be created without modifying the source photos.
 
 ![LayerShot timelapse controls](docs/images/timelapse-controls.png)
 
@@ -209,6 +284,16 @@ The same language selector is included on macOS and Windows:
 
 English and French are currently fully translated. Other languages use English
 text where a translation is not yet available.
+
+## Privacy and local operation
+
+- printer and ESP communication stays on the local network;
+- the desktop application does not upload camera previews or Wi-Fi credentials;
+- a Wi-Fi password requested from macOS or Windows is sent only to the ESP being
+  configured;
+- autonomous layer detection continues after the desktop application is closed;
+- all screenshots in this repository use fictitious names, reserved
+  documentation IP addresses and masked example credentials.
 
 ## Troubleshooting
 
@@ -239,6 +324,22 @@ the Apple Developer programme. Control-click **Hackman3D LayerShot**, choose
 - try the Moonraker ports `4408`, `7125` and `80`;
 - verify that the printer's local web interface is reachable in a browser.
 
+### Windows cannot open the ESP32 serial port
+
+- close Arduino IDE, serial monitors and any other LayerShot instance;
+- reconnect the ESP32 with a USB data cable and press **Refresh ports**;
+- select the COM port shown by Windows Device Manager;
+- if access is still denied, restart Windows and run the official installer
+  build instead of a copied development folder;
+- hold **BOOT**, briefly press **RESET**, then release **BOOT** to enter the
+  ESP32-C3 download mode when automatic reset is unavailable.
+
+### The shutter fires before the print head reaches its photo position
+
+Select a delay from 1 to 5 seconds in the camera step. The default is 3 seconds,
+which gives the slicer's smooth-timelapse movement time to finish before the
+Bluetooth command is sent. The saved value is visible on the ESP32 page.
+
 ## Build from source
 
 End users should use the ready-to-run downloads above. Contributors need Python
@@ -257,16 +358,18 @@ End users should use the ready-to-run downloads above. Contributors need Python
 ```
 
 Both scripts package the shared files under `src/hackman_layershot` and produce
-application version 0.6.0. The Windows script requires Python 3.12 x64,
+application version 1.1.0. The Windows script requires Python 3.12 x64,
 Python 3.10 x86 and Inno Setup 7. It produces one installer that automatically
 selects the correct architecture; end users do not need Python or Inno Setup.
 
 ## Firmware source
 
 The phone firmware source is in `firmware/Hackman3DLayerShot`. The DJI firmware
-source is in `firmware/Hackman3DLayerShotDJI` and is built with ESP-IDF. Both
-target an ESP32-C3 with 4 MB flash. The desktop app embeds both ready-to-flash
-images and chooses the correct one from the camera selection.
+source is in `firmware/Hackman3DLayerShotDJI` and is built with ESP-IDF. GoPro
+and Insta360 sources are in `firmware/Hackman3DLayerShotGoPro` and
+`firmware/Hackman3DLayerShotInsta360`. They target an ESP32-C3 with 4 MB flash.
+The desktop app embeds the ready-to-flash images and chooses the correct one
+from the camera selection.
 
 ## Third-party components
 
@@ -285,6 +388,11 @@ Its compatibility list covers Osmo Action 4, Action 5 Pro, Action 6 and Osmo
 360. The upstream licence is preserved in
 `firmware/Hackman3DLayerShotDJI/DJI-LICENSE.txt`.
 
+GoPro support follows GoPro's official
+[Open GoPro BLE API](https://gopro.github.io/OpenGoPro/docs/ble/). Experimental
+Insta360 remote emulation is derived from Patrick Chwalek's MIT-licensed
+`insta360_ble_esp32` research; its licence is preserved alongside the firmware.
+
 ## Support
 
 LayerShot is provided free of charge. Donations, feedback and follows on
@@ -292,5 +400,5 @@ HackMan3D social channels are welcome through the permanent application header.
 
 Created, designed and coded by HackMan3D.
 
-This repository is currently private. No redistribution license is granted until
-a `LICENSE` file is added.
+Third-party licences are preserved next to the components they cover. See the
+repository licence files before redistributing modified builds.

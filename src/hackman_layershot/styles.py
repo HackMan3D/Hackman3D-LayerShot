@@ -7,6 +7,7 @@ QFrame#support { background: #13283e; border: 1px solid #245a88; border-radius: 
 QFrame#community { background: #1b1e24; border: 1px solid #383b44; border-radius: 16px; }
 QFrame#sidebar { background: #151820; border-right: 1px solid #292e3a; }
 QFrame#card { background: #1b1e27; border: 1px solid #303541; border-radius: 14px; }
+QFrame#card[locked="true"] { background: #151820; border: 1px dashed #303541; }
 QLabel#brand { font-size: 21px; font-weight: 800; }
 QLabel#communityTitle { color: #72c6ff; font-size: 17px; font-weight: 800; }
 QLabel#supportCopy { color: #b9bac0; font-size: 15px; }

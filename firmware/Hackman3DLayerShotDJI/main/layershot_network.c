@@ -19,13 +19,15 @@
 #include "layershot_led.h"
 
 static layershot_config_t config = {
-    .printer_port = 4408, .every_layers = 1, .delay_ms = 800,
-    .autonomous = true
+    .printer_port = 4408, .every_layers = 1, .delay_ms = 3000,
+    .autonomous = true, .hostname = "hackman-layershot"
 };
 static bool wifi_ready;
 static char ip_address[16] = "0.0.0.0";
 static int last_layer;
 static int total_layers;
+static bool shutter_pending;
+static TickType_t shutter_due;
 static char printer_state[24] = "unknown";
 static httpd_handle_t server;
 
@@ -57,6 +59,10 @@ static void load_config(void) {
     z = sizeof(config.ssid); nvs_get_str(n, "ssid", config.ssid, &z);
     z = sizeof(config.password); nvs_get_str(n, "password", config.password, &z);
     z = sizeof(config.printer); nvs_get_str(n, "printer", config.printer, &z);
+    z = sizeof(config.hostname);
+    if (nvs_get_str(n, "hostname", config.hostname, &z) != ESP_OK) {
+        strlcpy(config.hostname, "hackman-layershot", sizeof(config.hostname));
+    }
     nvs_get_u16(n, "port", &config.printer_port);
     nvs_get_u16(n, "every", &config.every_layers);
     nvs_get_u16(n, "skip", &config.skip_layers);
@@ -71,6 +77,7 @@ static void save_config(void) {
     if (nvs_open("layershot", NVS_READWRITE, &n) != ESP_OK) return;
     nvs_set_str(n, "ssid", config.ssid); nvs_set_str(n, "password", config.password);
     nvs_set_str(n, "printer", config.printer); nvs_set_u16(n, "port", config.printer_port);
+    nvs_set_str(n, "hostname", config.hostname);
     nvs_set_u16(n, "every", config.every_layers); nvs_set_u16(n, "skip", config.skip_layers);
     nvs_set_u16(n, "stop", config.stop_before_end); nvs_set_u16(n, "delay", config.delay_ms);
     nvs_set_u8(n, "autonomous", config.autonomous); nvs_commit(n); nvs_close(n);
@@ -97,17 +104,19 @@ static esp_err_t root_handler(httpd_req_t *r) {
 static esp_err_t status_handler(httpd_req_t *r) {
     char json[640];
     snprintf(json, sizeof(json),
-        "{\"name\":\"Hackman3D LayerShot\",\"firmware\":\"2.0.0-DJI\",\"camera_type\":\"dji\","
+        "{\"name\":\"Hackman3D LayerShot\",\"firmware\":\"2.1.0-DJI\",\"hostname\":\"%s.local\",\"camera_type\":\"dji\","
         "\"camera_name\":\"%s\",\"bluetooth\":%s,\"bluetooth_state\":\"%s\","
         "\"pairing\":%s,\"wifi\":%s,\"wifi_state\":\"%s\",\"ip\":\"%s\","
-        "\"printer\":\"%s:%u\",\"printer_state\":\"%s\",\"current_layer\":%d,\"total_layers\":%d}",
-        layershot_camera_name(), layershot_camera_is_connected() ? "true" : "false",
+        "\"printer\":\"%s:%u\",\"printer_state\":\"%s\",\"current_layer\":%d,\"total_layers\":%d,"
+        "\"shutter_delay_ms\":%u}",
+        config.hostname, layershot_camera_name(), layershot_camera_is_connected() ? "true" : "false",
         layershot_camera_is_connected() ? "connected" :
         (layershot_camera_is_pairing() ? "pairing" : "disconnected"),
         layershot_camera_is_pairing() ? "true" : "false",
         wifi_ready ? "true" : "false", wifi_ready ? "connected" : "disconnected",
         ip_address, config.printer,
-        config.printer_port, printer_state, last_layer, total_layers);
+        config.printer_port, printer_state, last_layer, total_layers,
+        config.delay_ms);
     httpd_resp_set_type(r, "application/json"); return httpd_resp_sendstr(r, json);
 }
 static esp_err_t pair_handler(httpd_req_t *r) {
@@ -149,7 +158,7 @@ void layershot_network_init(void) {
     strlcpy((char *)w.sta.password, config.password, sizeof(w.sta.password));
     w.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     esp_wifi_set_mode(WIFI_MODE_STA); esp_wifi_set_config(WIFI_IF_STA, &w); esp_wifi_start();
-    mdns_init(); mdns_hostname_set("hackman-layershot"); mdns_instance_name_set("Hackman3D LayerShot");
+    mdns_init(); mdns_hostname_set(config.hostname); mdns_instance_name_set("Hackman3D LayerShot");
     mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
     start_server();
 }
@@ -172,12 +181,12 @@ static bool decode_hex(const char *hex, char *output, size_t output_size) {
 
 bool layershot_apply_serial_config(const char *line) {
     char copy[512]; strlcpy(copy, line, sizeof(copy));
-    char *fields[10] = {0}; int count = 1;
+    char *fields[11] = {0}; int count = 1;
     fields[0] = copy;
     // strtok_r() collapses adjacent tabs, shifting every following field when
     // one value is empty. Split tabs explicitly so USB provisioning always
     // keeps the ten-field desktop protocol aligned.
-    for (char *cursor = copy; *cursor && count < 10; cursor++) {
+    for (char *cursor = copy; *cursor && count < 11; cursor++) {
         if (*cursor == '\t') {
             *cursor = 0;
             fields[count++] = cursor + 1;
@@ -187,11 +196,12 @@ bool layershot_apply_serial_config(const char *line) {
     // partial input left by the bootloader. Never dereference fields that were
     // not present: doing so reset the ESP32 before the real configuration
     // command could arrive.
-    if (count != 10 || !fields[9]) {
+    if (count != 11 || !fields[10]) {
         printf("LAYERSHOT_CONFIG_DIAG:FIELDS_%d\n", count);
         return false;
     }
     fields[9][strcspn(fields[9], "\r\n")] = 0;
+    fields[10][strcspn(fields[10], "\r\n")] = 0;
     if (strcmp(fields[0], "LAYERSHOT_CONFIG")) {
         puts("LAYERSHOT_CONFIG_DIAG:HEADER");
         return false;
@@ -212,6 +222,7 @@ bool layershot_apply_serial_config(const char *line) {
     config.printer_port = atoi(fields[4]); config.every_layers = atoi(fields[5]);
     config.skip_layers = atoi(fields[6]); config.stop_before_end = atoi(fields[7]);
     config.delay_ms = atoi(fields[8]); config.autonomous = true;
+    strlcpy(config.hostname, fields[10], sizeof(config.hostname));
     if (!config.ssid[0]) {
         puts("LAYERSHOT_CONFIG_DIAG:EMPTY_SSID");
         return false;
@@ -272,10 +283,22 @@ void layershot_poll_printer(void) {
                     (!total || current+config.stop_before_end<=total) &&
                     strcmp(printer_state,"printing")==0;
                 last_layer=current; total_layers=total;
-                if (valid) { vTaskDelay(pdMS_TO_TICKS(config.delay_ms)); layershot_camera_trigger(); }
+                if (valid) {
+                    shutter_pending = true;
+                    shutter_due = xTaskGetTickCount() +
+                        pdMS_TO_TICKS(config.delay_ms);
+                }
             }
             free(body);
         }
     }
     esp_http_client_cleanup(h);
+}
+
+void layershot_process_shutter_timer(void) {
+    if (shutter_pending &&
+        (int32_t)(xTaskGetTickCount() - shutter_due) >= 0) {
+        shutter_pending = false;
+        layershot_camera_trigger();
+    }
 }
