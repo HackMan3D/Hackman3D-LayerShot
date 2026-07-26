@@ -5,12 +5,12 @@ from .qt_compat import (
     QT_BINDING, QColor, QDesktopServices, QIcon, QImageReader, QPainter,
     QPixmap, QTransform, QObject, QRunnable, QSettings,
     QSize, QThreadPool, QTimer, Qt, Signal, QUrl,
-    QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout, QHBoxLayout, QLabel,
+    QCheckBox, QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout, QHBoxLayout, QLabel,
     QLineEdit, QMainWindow, QMessageBox, QProgressBar, QPushButton, QScrollArea,
     QSpinBox, QStackedWidget, QVBoxLayout, QWidget
 )
 from . import __version__
-from .services import asset_path, discover_esps, discover_printers, esp_post, esp_status, hidden_subprocess_kwargs, known_wifi_networks, known_wifi_password, latest_layershot_release, printer_status, save_wifi_password, serial_ports
+from .services import asset_path, discover_esps, discover_printers, download_firmware_url, download_release_asset, esp_post, esp_status, hidden_subprocess_kwargs, known_wifi_networks, known_wifi_password, latest_firmware_catalog, latest_layershot_release, printer_status, save_wifi_password, serial_ports
 from .translations import LANGUAGES, tr
 
 MODELS = ["K2 Plus", "K2", "K1 Max", "K1C", "K1", "Ender-3 V3 Plus",
@@ -26,6 +26,20 @@ CAMERA_TARGETS = (
     ("camera_dji", "dji"),
     ("camera_gopro", "gopro"),
     ("camera_insta360", "insta360"),
+)
+FIRMWARE_VERSIONS = {
+    "iphone": "2.2.1",
+    "android": "2.2.1",
+    "hid_volume_up": "2.2.1",
+    "hid_volume_down": "2.2.1",
+    "hid_enter": "2.2.1",
+    "hid_space": "2.2.1",
+    "dji": "2.1.0-DJI",
+    "gopro": "2.2.0-gopro",
+    "insta360": "2.2.0-insta360-exp",
+}
+LEGACY_FIRMWARE_RELEASES = (
+    "v1.2.3", "v1.2.2", "v1.2.1", "v1.2.0", "v1.1.0", "v0.6.0",
 )
 SUPPORTED_IMAGE_SUFFIXES = {
     ".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".tif", ".tiff",
@@ -113,6 +127,8 @@ class MainWindow(QMainWindow):
         self.cards = {}
         self.camera_views = {}
         self.camera_step_confirmed = False
+        self.firmware_catalog = {}
+        self.last_esp_status = None
         self.firmware_ready = str(
             self.settings.value("firmware_installed", "false")
         ).lower() in ("1", "true", "yes")
@@ -123,6 +139,7 @@ class MainWindow(QMainWindow):
         self.poller = QTimer(self); self.poller.timeout.connect(self.refresh_all)
         self.poller.timeout.connect(self.refresh_esp_status); self.poller.start(5000)
         QTimer.singleShot(1500, self.check_for_updates)
+        QTimer.singleShot(500, self.refresh_firmware_catalog)
         QTimer.singleShot(800, self.detect_existing_esp)
 
     def T(self, key): return tr(self.lang, key)
@@ -313,6 +330,15 @@ class MainWindow(QMainWindow):
         self.setup_flash_card = e
         ef = QFormLayout(); self.port_combo = QComboBox(); self.refresh_ports()
         ef.addRow(self.T("serial"), self.port_combo); e.layout().addLayout(ef)
+        self.show_legacy_firmware = QCheckBox(self.T("show_legacy_firmware"))
+        self.show_legacy_firmware.toggled.connect(
+            self.toggle_legacy_firmware_versions)
+        e.layout().addWidget(self.show_legacy_firmware)
+        self.firmware_release = QComboBox()
+        self.firmware_release.setToolTip(self.T("legacy_firmware_warning"))
+        self.firmware_release.hide()
+        e.layout().addWidget(self.firmware_release)
+        self.populate_firmware_versions()
         er = QHBoxLayout(); er.addWidget(button(self.T("detect"), self.refresh_ports))
         self.install_button = button(self.T("flash"), self.flash_firmware, True)
         er.addWidget(self.install_button); er.addStretch()
@@ -341,8 +367,75 @@ class MainWindow(QMainWindow):
         self.password.textChanged.connect(self.invalidate_camera_step)
         self.port_combo.currentIndexChanged.connect(self.update_setup_steps)
         self.camera_target.currentIndexChanged.connect(self.update_setup_steps)
+        self.camera_target.currentIndexChanged.connect(
+            self.populate_firmware_versions)
         self.update_setup_steps()
         return page
+
+    def populate_firmware_versions(self, *_):
+        if not hasattr(self, "firmware_release"):
+            return
+        selected = self.firmware_release.currentData()
+        camera_target = (
+            self.camera_target.currentData()
+            if hasattr(self, "camera_target") else "iphone")
+        self.firmware_release.clear()
+        latest = self.catalog_firmware(camera_target)
+        latest_version = (
+            latest.get("version") if latest
+            else FIRMWARE_VERSIONS.get(camera_target, "—"))
+        self.firmware_release.addItem(
+            self.T("latest_firmware").format(
+                version=latest_version),
+            latest or None)
+        history = self.catalog_firmware_entry(camera_target).get("history", [])
+        if history:
+            for item in history:
+                self.firmware_release.addItem(
+                    self.T("legacy_firmware_version").format(
+                        version=item.get("version", "—")),
+                    item)
+        else:
+            releases = LEGACY_FIRMWARE_RELEASES
+            if camera_target in ("gopro", "insta360"):
+                releases = tuple(tag for tag in releases if tag != "v0.6.0")
+            for tag in releases:
+                self.firmware_release.addItem(
+                    self.T("legacy_firmware_from").format(
+                        version=tag.lstrip("v")),
+                    {"release": tag})
+        index = self.firmware_release.findData(selected)
+        self.firmware_release.setCurrentIndex(index if index >= 0 else 0)
+
+    def toggle_legacy_firmware_versions(self, checked):
+        self.firmware_release.setVisible(checked)
+        if not checked:
+            self.firmware_release.setCurrentIndex(0)
+
+    def refresh_firmware_catalog(self):
+        def loaded(catalog):
+            if not isinstance(catalog.get("firmware"), dict):
+                return
+            self.firmware_catalog = catalog
+            self.populate_firmware_versions()
+            if self.last_esp_status:
+                self.update_firmware_notice(
+                    str(self.last_esp_status.get("firmware", "—")),
+                    self.last_esp_status.get("camera_type")
+                    or self.camera_target_value)
+        self.run(latest_firmware_catalog, done=loaded, failed=lambda _error: None)
+
+    def catalog_firmware(self, camera_target):
+        entry = self.catalog_firmware_entry(camera_target)
+        return entry.get("latest", {}) if isinstance(entry, dict) else {}
+
+    def catalog_firmware_entry(self, camera_target):
+        firmware = self.firmware_catalog.get("firmware", {})
+        entry = firmware.get(camera_target, {})
+        alias = entry.get("alias") if isinstance(entry, dict) else None
+        if alias:
+            entry = firmware.get(alias, {})
+        return entry if isinstance(entry, dict) else {}
 
     def build_timelapse_page(self):
         page, lay = self.page_shell(self.T("time_title"))
@@ -426,6 +519,20 @@ class MainWindow(QMainWindow):
         status.layout().addLayout(header)
         self.esp_connection_message = self.label(self.T("esp_not_checked"), "subtitle")
         status.layout().addWidget(self.esp_connection_message)
+        self.firmware_update_banner = QFrame()
+        self.firmware_update_banner.setObjectName("support")
+        firmware_update_layout = QHBoxLayout(self.firmware_update_banner)
+        self.firmware_update_message = self.label("", "good")
+        firmware_update_layout.addWidget(self.firmware_update_message, 1)
+        firmware_update_layout.addWidget(
+            button(
+                self.T("update_firmware"),
+                lambda: self.show_page(1),
+                primary=True,
+            )
+        )
+        self.firmware_update_banner.hide()
+        status.layout().addWidget(self.firmware_update_banner)
         self.esp_metrics = {}
         metrics = QGridLayout()
         for index, (key, title) in enumerate([
@@ -880,11 +987,16 @@ class MainWindow(QMainWindow):
     def refresh_esp_status(self):
         if not hasattr(self, "esp_metrics") or self.stack.currentIndex() != 2:
             return
-        self.esp_connection_message.setText(self.T("connecting"))
+        # Keep the last successful state visible while the background poll is
+        # running. Replacing it with “Connecting…” every five seconds creates
+        # distracting flicker even though the ESP never disconnected.
+        if self.last_esp_status is None:
+            self.esp_connection_message.setText(self.T("connecting"))
         self.run(esp_status, (self.esp_host.text().strip(),),
                  self.update_esp_status, self.fail_esp_status)
 
     def update_esp_status(self, status):
+        self.last_esp_status = status
         self.firmware_ready = True
         self.settings.setValue("firmware_installed", True)
         self.update_setup_steps()
@@ -900,7 +1012,8 @@ class MainWindow(QMainWindow):
             self.settings.setValue("esp_host", identity)
         self.esp_connection_message.setText(
             "✓ " + self.T("esp_connected") + " — " + status.get("hostname", "hackman-layershot.local"))
-        self.esp_metrics["firmware"].setText(str(status.get("firmware", "—")))
+        installed_firmware = str(status.get("firmware", "—"))
+        self.esp_metrics["firmware"].setText(installed_firmware)
         self.esp_metrics["ip"].setText(str(status.get("ip", "—")))
         self.esp_metrics["wifi"].setText(self.T("online") if status.get("wifi") else self.T("offline"))
         target = status.get("camera_type") or self.camera_target_value
@@ -913,14 +1026,19 @@ class MainWindow(QMainWindow):
                 self.camera_target.setCurrentIndex(index)
                 self.camera_target.blockSignals(False)
         self.update_camera_guides()
+        self.update_firmware_notice(installed_firmware, target)
         self.esp_metrics["camera"].setText(
             status.get("camera_name") or self.camera_target_name(target))
         self.esp_metrics["bluetooth"].setText(
             self.T("esp_camera_connected") if status.get("bluetooth")
             else (self.T("esp_detectable") if status.get("pairing") else self.T("offline")))
         printer = status.get("printer") or "—"
+        printer_name = self.printer_name_for_address(printer)
+        printer_display = (
+            f"{printer_name} · {printer}" if printer_name else printer)
         self.esp_metrics["printer"].setText(
-            printer if status.get("printer_connected") else printer + " · " + self.T("offline"))
+            printer_display if status.get("printer_connected")
+            else printer_display + " · " + self.T("offline"))
         current, total = status.get("current_layer", -1), status.get("total_layers", -1)
         self.esp_metrics["layer"].setText(
             f"{current} / {total}" if current is not None and current >= 0 and total and total > 0
@@ -936,6 +1054,46 @@ class MainWindow(QMainWindow):
             "✕ " + self.T("esp_unreachable") + " — " + address)
         for label in self.esp_metrics.values():
             label.setText("—")
+        if hasattr(self, "firmware_update_banner"):
+            self.firmware_update_banner.hide()
+
+    def printer_name_for_address(self, address):
+        address_text = str(address or "").strip().lower()
+        if not address_text or address_text == "—":
+            return ""
+        address_host = address_text.rsplit(":", 1)[0]
+        for printer in self.printers:
+            saved_host = str(printer.get("host", "")).strip().lower()
+            saved_port = str(printer.get("port", "")).strip()
+            if (address_text == f"{saved_host}:{saved_port}" or
+                    address_host == saved_host):
+                return str(printer.get("name") or "").strip()
+        return ""
+
+    @staticmethod
+    def firmware_version_key(value):
+        numbers = re.findall(r"\d+", str(value))
+        return tuple(int(number) for number in numbers[:3])
+
+    def update_firmware_notice(self, installed, camera_target):
+        latest = self.catalog_firmware(camera_target)
+        expected = latest.get("version") or FIRMWARE_VERSIONS.get(camera_target)
+        if not expected or installed in ("", "—"):
+            self.firmware_update_banner.hide()
+            return
+        obsolete = (
+            self.firmware_version_key(installed)
+            < self.firmware_version_key(expected)
+        )
+        if obsolete:
+            self.firmware_update_message.setText(
+                self.T("firmware_update_available").format(
+                    installed=installed, version=expected
+                )
+            )
+            self.firmware_update_banner.show()
+        else:
+            self.firmware_update_banner.hide()
 
     def update_card(self,p,data):
         if p["id"] not in self.cards:return
@@ -1003,6 +1161,15 @@ class MainWindow(QMainWindow):
             "insta360": "Hackman3DLayerShotInsta360.bin",
         }.get(camera_target, "Hackman3DLayerShotPhone.bin")
         fw=asset_path(firmware_name)
+        selected_firmware = self.firmware_release.currentData()
+        if not self.show_legacy_firmware.isChecked():
+            selected_firmware = self.catalog_firmware(camera_target) or None
+        release_firmware_name = {
+            "dji": "Hackman3D-LayerShot-ESP32-C3-DJI.bin",
+            "gopro": "Hackman3D-LayerShot-ESP32-C3-GoPro.bin",
+            "insta360":
+                "Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin",
+        }.get(camera_target, "Hackman3D-LayerShot-ESP32-C3-Phone.bin")
         missing = []
         if selected_printer is None:
             missing.append(self.T("missing_printer"))
@@ -1032,13 +1199,22 @@ class MainWindow(QMainWindow):
         def task():
             # Do not touch the ESP until the selected printer has answered.
             printer_status(printer["host"], printer["port"])
+            if selected_firmware and selected_firmware.get("url"):
+                selected_fw = download_firmware_url(
+                    selected_firmware["url"],
+                    f"{camera_target}-{selected_firmware.get('version', 'latest')}")
+            elif selected_firmware and selected_firmware.get("release"):
+                selected_fw = download_release_asset(
+                    selected_firmware["release"], release_firmware_name)
+            else:
+                selected_fw = fw
             import serial
             esptool_executable = asset_path("esptool.exe")
             esptool_arguments = [
                 "--chip", "esp32c3", "--port", port,
                 "--baud", "460800",
                 "--before", "default-reset", "--after", "hard-reset",
-                "write-flash", "0x0", str(fw),
+                "write-flash", "0x0", str(selected_fw),
             ]
             if (platform.system() == "Windows" and esptool_executable.exists()
                     and sys.maxsize > 2**32):

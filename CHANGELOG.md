@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.4 — 2026-07-26
+
+- Detects obsolete firmware on each connected LayerShot ESP32.
+- Displays the installed and available firmware versions.
+- Provides a direct action to open Installation and update the ESP32.
+- Keeps quick installation on the latest bundled firmware by default.
+- Adds an optional advanced selector for firmware from older official releases.
+- Reads the latest firmware catalogue directly from GitHub, allowing firmware
+  updates without requiring a new desktop application release.
+- Shows both the saved printer name and its network address in the ESP32 panel.
+- Refreshes ESP32 status silently without flashing between Connected and
+  Connecting.
+
 ## 1.2.3 — 2026-07-26
 
 - Fixed the timelapse preview for iPhone photos with embedded orientation
