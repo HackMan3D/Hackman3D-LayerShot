@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.2 — 2026-07-26
+
+### Stable multi-ESP addressing
+
+- The application now keeps each ESP's Bonjour `.local` hostname as its
+  permanent identity instead of replacing it with a temporary DHCP address.
+- ESP selectors display both the stable hostname and the current numeric IP.
+- Hostname checks prevent a missing ESP from being silently replaced by a
+  different LayerShot device found on the same network.
+
 ## 1.2.1 — 2026-07-26
 
 ### Phone shutter timer hotfix
