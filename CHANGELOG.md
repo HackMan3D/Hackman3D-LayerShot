@@ -19,6 +19,8 @@
   and an editable manual address fallback.
 - Made the phone firmware's test-shutter command use the configured 1–5 second
   delay, so the timer can be verified before starting a print.
+- Timer changes are now sent immediately to an already configured phone
+  firmware; reflashing is no longer required just to change the delay.
 
 ## 1.1.0 — 2026-07-26
 

@@ -294,10 +294,7 @@ class MainWindow(QMainWindow):
                 self.shutter_delay.itemData(index) - saved_delay))
         self.shutter_delay.setCurrentIndex(closest_delay)
         self.shutter_delay.currentIndexChanged.connect(
-            lambda _index: self.settings.setValue(
-                "shutter_delay_ms", self.shutter_delay.currentData()))
-        self.shutter_delay.currentIndexChanged.connect(
-            self.invalidate_camera_step)
+            self.shutter_delay_changed)
         camera_form.addRow(self.T("shutter_delay"), self.shutter_delay)
         camera.layout().addLayout(camera_form)
         camera.layout().addWidget(self.label(self.T("shutter_delay_tip"), "subtitle"))
@@ -598,6 +595,19 @@ class MainWindow(QMainWindow):
     def invalidate_camera_step(self, *_):
         self.camera_step_confirmed = False
         self.update_setup_steps()
+
+    def shutter_delay_changed(self, *_):
+        delay = self.shutter_delay.currentData()
+        self.settings.setValue("shutter_delay_ms", delay)
+        self.invalidate_camera_step()
+        # Once an ESP is installed, apply timer changes immediately. A full
+        # reflash is only needed when selecting a different camera firmware.
+        if self.firmware_ready and self.esp_host.text().strip():
+            self.run(
+                esp_post,
+                (self.esp_host.text().strip(), "delay", {"delay": delay}),
+                lambda _result: self.refresh_esp_status(),
+                lambda _error: None)
 
     def confirm_camera_step(self):
         self.camera_step_confirmed = True

@@ -55,6 +55,8 @@ and LayerShot is ready to photograph every layer.
   automatic recovery after a DHCP address change;
 - a test-shutter action that waits for the configured delay, making the timer
   directly verifiable from the desktop or ESP dashboard;
+- live 1–5 second timer updates for an already configured phone firmware,
+  without reflashing the ESP32;
 - broader support for phone, tablet, webcam, stop-motion and tethering apps;
 - phone firmware 2.2.0 stores and uses the selected shutter command;
 - GoPro support through the official Open GoPro Bluetooth API;

@@ -229,6 +229,19 @@ void setupWeb() {
     lastPrinterLayer = -1;
     sendJSON(200, "{\"ok\":true,\"autonomous\":true}");
   });
+  web.on("/delay", HTTP_POST, [] {
+    uint16_t newDelay = (uint16_t)web.arg("delay").toInt();
+    if (newDelay < 1000 || newDelay > 5000) {
+      sendJSON(400, "{\"ok\":false,\"error\":\"invalid_delay\"}");
+      return;
+    }
+    stabilizationMs = newDelay;
+    preferences.begin("layershot", false);
+    preferences.putUShort("delay", stabilizationMs);
+    preferences.end();
+    sendJSON(200, "{\"ok\":true,\"delay_ms\":" +
+             String(stabilizationMs) + "}");
+  });
   web.on("/printer-test", HTTP_POST, [] {
     lastPrinterPoll = 0;
     pollPrinter();
@@ -462,7 +475,11 @@ void setup() {
   stabilizationMs = preferences.getUShort("delay", 3000);
   cameraType = preferences.getString("camera", "iphone");
   deviceHostname = preferences.getString("hostname", HOSTNAME);
-  if (cameraType != "android") cameraType = "iphone";
+  if (cameraType != "iphone" && cameraType != "android" &&
+      cameraType != "hid_volume_up" && cameraType != "hid_volume_down" &&
+      cameraType != "hid_enter" && cameraType != "hid_space") {
+    cameraType = "iphone";
+  }
   autonomousEnabled = preferences.getBool("autonomous", false);
   preferences.end();
   connectWiFi();
