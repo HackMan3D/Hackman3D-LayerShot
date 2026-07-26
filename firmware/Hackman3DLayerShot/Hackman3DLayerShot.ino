@@ -9,7 +9,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "dashboard.h"
 
-static const char *FIRMWARE_VERSION = "2.1.0";
+static const char *FIRMWARE_VERSION = "2.2.0";
 static const char *HOSTNAME = "hackman-layershot";
 static const char *BLE_NAME = "Hackman3D LayerShot";
 static const char *SETUP_AP = "Hackman3D-LayerShot-Setup";
@@ -86,14 +86,27 @@ void advertise() {
 bool triggerShutter() {
   bleConnected = bleKeyboard.isPaired();
   if (!bleConnected) return false;
-  bleKeyboard.tap(MEDIA_VOLUME_UP, 80, 40);
+  if (cameraType == "hid_volume_down") {
+    bleKeyboard.tap(MEDIA_VOLUME_DOWN, 80, 40);
+  } else if (cameraType == "hid_enter") {
+    bleKeyboard.tap(KEY_RETURN, 80, 40);
+  } else if (cameraType == "hid_space") {
+    bleKeyboard.tap(KEY_SPACE, 80, 40);
+  } else {
+    bleKeyboard.tap(MEDIA_VOLUME_UP, 80, 40);
+  }
   triggerCount++;
   shutterFlashUntil = millis() + 350;
   return true;
 }
 
 String cameraName() {
-  return cameraType == "android" ? "Android smartphone" : "iPhone";
+  if (cameraType == "android") return "Android smartphone";
+  if (cameraType == "hid_volume_up") return "Generic BLE HID - Volume Up";
+  if (cameraType == "hid_volume_down") return "Generic BLE HID - Volume Down";
+  if (cameraType == "hid_enter") return "Generic BLE HID - Enter";
+  if (cameraType == "hid_space") return "Generic BLE HID - Space";
+  return "iPhone / iPad";
 }
 
 void clearBluetoothBonds() {
@@ -272,7 +285,11 @@ void handleSerialProvisioning() {
         preferences.putUShort("stop", (uint16_t)max(0L, serialField(serialLine, 7).toInt()));
         preferences.putUShort("delay", (uint16_t)max(0L, serialField(serialLine, 8).toInt()));
         String newCamera = serialField(serialLine, 9);
-        if (newCamera != "android") newCamera = "iphone";
+        if (newCamera != "android" &&
+            newCamera != "hid_volume_up" &&
+            newCamera != "hid_volume_down" &&
+            newCamera != "hid_enter" &&
+            newCamera != "hid_space") newCamera = "iphone";
         preferences.putString("camera", newCamera);
         String newHostname = serialField(serialLine, 10);
         if (!newHostname.isEmpty()) preferences.putString("hostname", newHostname);

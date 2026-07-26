@@ -73,6 +73,10 @@ matching firmware:
 |---|---|---|---|
 | iPhone | iPhones supporting Bluetooth keyboard/remote volume keys | Bluetooth HID `Volume +` | Keep Apple's Camera app open |
 | Android | Phones whose camera app can assign a volume key to the shutter | Bluetooth HID `Volume +` | Enable “volume button = shutter” when required; support depends on the phone and camera app |
+| Generic HID — Volume + | Camera and tethering applications accepting Bluetooth Volume + | Bluetooth HID `Volume +` | Assign Volume + to Capture/Shutter and test |
+| Generic HID — Volume − | Camera and tethering applications accepting Bluetooth Volume − | Bluetooth HID `Volume −` | Assign Volume − to Capture/Shutter and test |
+| Generic HID — Enter | Camera, webcam, kiosk and tethering software accepting Enter | Bluetooth keyboard `Enter` | Map Enter to Capture/Shutter |
+| Generic HID — Space | Camera, webcam, stop-motion and tethering software accepting Space | Bluetooth keyboard `Space` | Map Space to Capture/Shutter |
 | DJI | DJI Osmo Action 4, Osmo Action 5 Pro, Osmo Action 6 and Osmo 360 | Official DJI BLE camera protocol | Put the camera in Photo mode and approve pairing on its screen |
 | GoPro | HERO9 Black, HERO10 Black/Bones, HERO11 Black/Mini and HERO12 Black; newer Open GoPro models require LayerShot validation | Official Open GoPro BLE API | Put the camera in Photo mode and open its Connect Device screen |
 | Insta360 — experimental | X3, X4, X5, Ace, Ace Pro and Ace Pro 2 families | Experimental emulation of an Insta360 GPS Bluetooth remote | Compatibility depends on the exact camera firmware; test before printing |
@@ -86,6 +90,29 @@ matching firmware:
 DJI Osmo Action 3 and older models are not listed as compatible by the official
 protocol demo used by this project. Smartphone compatibility can vary because
 manufacturers are free to change how their Camera app handles volume keys.
+
+### Extended phone, tablet and application coverage
+
+The four generic HID profiles make LayerShot usable with many camera
+applications on Samsung Galaxy, Google Pixel, Xiaomi, Redmi, Poco, OnePlus,
+Oppo, Realme, Huawei, Honor, Sony Xperia, Motorola, Nokia and ASUS devices.
+They also cover iPad camera applications plus desktop webcam, stop-motion,
+kiosk and tethering software when that software lets the user map Volume +,
+Volume −, Enter or Space to the shutter.
+
+This is genuine Bluetooth HID compatibility, not a model-name promise: always
+use **Test camera shutter** before a print.
+
+### Interchangeable-lens cameras
+
+Canon BR-E1, Nikon ML-L7, Sony RMT-P1BT, Fujifilm TG-BT1, Panasonic
+DMW-BTR1 and OM System/Olympus RM-WR1 remotes do not share a universal
+Bluetooth shutter protocol. Their manufacturers' desktop SDKs also cannot run
+inside an ESP32-C3. These camera families are therefore not labelled compatible
+until a lawful embedded protocol and physical-camera validation are available.
+For the broadest future DSLR/mirrorless coverage, an isolated wired-shutter
+accessory is the reliable route and can be added without changing autonomous
+layer detection.
 
 ## What LayerShot does
 
