@@ -1,5 +1,14 @@
 # Hackman3D LayerShot
 
+[![Latest release](https://img.shields.io/github/v/release/HackMan3D/Hackman3D-LayerShot?style=flat-square&label=Release&color=0A84FF)](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/latest)
+![Platforms](https://img.shields.io/badge/Platforms-macOS%20%7C%20Windows-0A84FF?style=flat-square)
+![Hardware](https://img.shields.io/badge/Hardware-ESP32--C3-00A6A6?style=flat-square)
+![Firmware](https://img.shields.io/badge/Firmware-Arduino%20%7C%20ESP--IDF-00979D?style=flat-square)
+![Cameras](https://img.shields.io/badge/Cameras-iPhone%20%7C%20Android%20%7C%20DJI%20%7C%20GoPro-7B61FF?style=flat-square)
+![Source](https://img.shields.io/badge/Source-Available-39A845?style=flat-square)
+[![GitHub stars](https://img.shields.io/github/stars/HackMan3D/Hackman3D-LayerShot?style=flat-square&logo=github&label=Stars)](https://github.com/HackMan3D/Hackman3D-LayerShot/stargazers)
+[![Downloads](https://img.shields.io/github/downloads/HackMan3D/Hackman3D-LayerShot/total?style=flat-square&logo=github&label=Downloads)](https://github.com/HackMan3D/Hackman3D-LayerShot/releases)
+
 Hackman3D LayerShot turns a small ESP32-C3 into an autonomous Bluetooth camera
 shutter for 3D-printing timelapses. It detects layer changes through Moonraker
 and triggers an iPhone, Android phone, DJI camera, GoPro or selected
