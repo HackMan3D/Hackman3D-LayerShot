@@ -433,6 +433,10 @@ def _arp_addresses():
 def _esp_base(host):
     hostname, port = normalize_host(host)
     cache_key = hostname.lower()
+    requested_identity = cache_key.rstrip(".")
+    named_layershot = requested_identity.startswith(
+        "hackman-layershot") and not re.fullmatch(
+            r"\d+(?:\.\d+){3}", requested_identity)
     cached = _esp_address_cache.get(cache_key)
     candidates = [cached] if cached else []
     bonjour_hosts = _bonjour_layershot_hosts()
@@ -471,6 +475,10 @@ def _esp_base(host):
         try:
             status = request_json(base + "/status", timeout=1)
             if status.get("name") == "Hackman3D LayerShot":
+                status_hostname = str(status.get("hostname", "")).lower().rstrip(".")
+                if (named_layershot and status_hostname
+                        and status_hostname != requested_identity):
+                    continue
                 _esp_address_cache[cache_key] = candidate
                 return base, status
         except Exception:

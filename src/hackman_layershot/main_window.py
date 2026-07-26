@@ -474,10 +474,13 @@ class MainWindow(QMainWindow):
         else:
             for status in devices:
                 address = status["_resolved_address"]
+                hostname = str(status.get("hostname") or "").strip()
+                identity = hostname if hostname.endswith(".local") else address
                 printer = status.get("printer") or self.T("no_printer")
                 camera = status.get("camera_name") or status.get("camera_type", "")
                 self.esp_selector.addItem(
-                    f"{address} — {printer} — {camera}", address)
+                    f"{hostname or address} ({address}) — {printer} — {camera}",
+                    identity)
             current_index = self.esp_selector.findData(
                 self.esp_host.text().strip())
             self.esp_selector.setCurrentIndex(
@@ -885,10 +888,16 @@ class MainWindow(QMainWindow):
         self.firmware_ready = True
         self.settings.setValue("firmware_installed", True)
         self.update_setup_steps()
-        resolved = status.get("_resolved_address")
-        if resolved:
-            self.esp_host.setText(resolved)
-            self.settings.setValue("esp_host", resolved)
+        # Keep the stable Bonjour hostname as the saved identity. The numeric
+        # DHCP address is displayed below but must not replace the hostname,
+        # otherwise the app becomes stuck when the router leases a new IP.
+        hostname = str(status.get("hostname") or "").strip()
+        identity = (
+            hostname if hostname.endswith(".local")
+            else self.esp_host.text().strip())
+        if identity:
+            self.esp_host.setText(identity)
+            self.settings.setValue("esp_host", identity)
         self.esp_connection_message.setText(
             "✓ " + self.T("esp_connected") + " — " + status.get("hostname", "hackman-layershot.local"))
         self.esp_metrics["firmware"].setText(str(status.get("firmware", "—")))
