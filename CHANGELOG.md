@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 — 2026-07-26
+
+### Phone shutter timer hotfix
+
+- Updated the autonomous phone firmware to 2.2.1.
+- Made a short press on the physical ESP32 BOOT button respect the configured
+  1–5 second shutter delay, matching layer changes and software shutter tests.
+
 ## 1.2.0 — 2026-07-26
 
 ### Extended Bluetooth camera compatibility
