@@ -20,16 +20,16 @@ or PC application can be closed during the entire print.
 
 ![LayerShot printer dashboard](docs/images/printer-dashboard.png)
 
-## Download — version 1.2.3
+## Download — version 1.2.4
 
 No compilation or Arduino IDE setup is required:
 
-- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-macOS-1.2.3.zip)
-- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-Windows-Setup-1.2.3.exe)
-- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
-- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
-- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
-- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-macOS-1.2.4.zip)
+- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-Windows-Setup-1.2.4.exe)
+- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
+- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
+- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
+- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
 
 > **Security notice:** these downloads are not yet signed with Apple and
 > Microsoft developer certificates. macOS Gatekeeper or Windows SmartScreen may
@@ -58,14 +58,18 @@ and LayerShot is ready to photograph every layer.
 
 ![Guided printer installation](docs/images/guided-installation.png)
 
-## What is new in 1.2.3
+## What is new in 1.2.4
 
-- timelapse previews now apply the orientation metadata embedded by iPhone
-  cameras;
-- preview rotation, crop and aspect ratio now match the rendered video;
-- updated native macOS application and combined 32-bit/64-bit Windows
-  installer;
-- firmware binaries are unchanged from version 1.2.2;
+- detects obsolete firmware on every connected LayerShot ESP32;
+- displays both the installed firmware and the latest compatible version;
+- provides a direct **Update the ESP32** action;
+- reads the firmware catalogue directly from GitHub, so new ESP32 firmware can
+  be detected and installed without updating the desktop application;
+- quick installation always uses the latest firmware automatically, with an
+  offline fallback to the firmware bundled in the application;
+- an optional advanced checkbox reveals firmware from older official releases;
+- the ESP32 panel identifies its printer by both saved name and network address;
+- automatic ESP32 status refreshes no longer make the connection label flicker;
 - multiple LayerShot ESP32 devices can be discovered and managed independently;
 - every ESP receives a readable hostname derived from its printer name;
 - the selected printer is now always written to the ESP during installation;

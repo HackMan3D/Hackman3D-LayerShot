@@ -10,7 +10,7 @@ try:
         QTransform,
     )
     from PySide6.QtWidgets import (
-        QApplication, QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout,
+        QApplication, QCheckBox, QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout,
         QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QProgressBar,
         QPushButton, QScrollArea, QSpinBox, QStackedWidget, QVBoxLayout, QWidget,
     )
@@ -25,7 +25,7 @@ except ImportError:
         QTransform,
     )
     from PySide2.QtWidgets import (
-        QApplication, QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout,
+        QApplication, QCheckBox, QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout,
         QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QProgressBar,
         QPushButton, QScrollArea, QSpinBox, QStackedWidget, QVBoxLayout, QWidget,
     )

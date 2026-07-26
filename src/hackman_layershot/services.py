@@ -15,6 +15,51 @@ def latest_layershot_release():
         "https://api.github.com/repos/HackMan3D/Hackman3D-LayerShot/releases/latest",
         timeout=5)
 
+def latest_firmware_catalog():
+    return request_json(
+        "https://raw.githubusercontent.com/HackMan3D/"
+        "Hackman3D-LayerShot/main/firmware-manifest.json",
+        timeout=6)
+
+def download_firmware_url(url, cache_key):
+    """Download and cache a firmware binary from the official GitHub catalog."""
+    parsed = urllib.parse.urlsplit(str(url))
+    if (parsed.scheme != "https" or
+            parsed.hostname not in ("github.com", "objects.githubusercontent.com")):
+        raise ValueError("The firmware URL is not an official GitHub download.")
+    safe_key = re.sub(r"[^A-Za-z0-9._-]", "-", str(cache_key))
+    destination = (
+        Path(tempfile.gettempdir()) / "hackman3d-layershot-firmware" /
+        f"{safe_key}.bin")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists() and destination.stat().st_size > 100000:
+        return destination
+    partial = destination.with_suffix(".download")
+    if platform.system() == "Darwin":
+        subprocess.run(
+            ["/usr/bin/curl", "--location", "--fail", "--silent",
+             "--show-error", "--output", str(partial), str(url)],
+            check=True, timeout=90)
+    else:
+        with urllib.request.urlopen(str(url), timeout=90) as response:
+            with open(partial, "wb") as output:
+                shutil.copyfileobj(response, output)
+    if not partial.exists() or partial.stat().st_size < 100000:
+        raise RuntimeError("The downloaded firmware file is incomplete.")
+    partial.replace(destination)
+    return destination
+
+def download_release_asset(tag, name):
+    """Download an official legacy firmware asset into the system cache."""
+    safe_tag = re.sub(r"[^A-Za-z0-9._-]", "", str(tag))
+    safe_name = Path(name).name
+    if not safe_tag or not safe_name.lower().endswith(".bin"):
+        raise ValueError("The selected firmware version is invalid.")
+    url = (
+        "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/"
+        f"{urllib.parse.quote(safe_tag)}/{urllib.parse.quote(safe_name)}")
+    return download_firmware_url(url, f"{safe_tag}-{safe_name}")
+
 def request_json(url, method="GET", payload=None, timeout=4, form=False,
                  allow_text=False):
     # Independently distributed macOS applications signed ad hoc can be denied
