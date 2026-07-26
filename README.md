@@ -8,6 +8,7 @@
 ![Source](https://img.shields.io/badge/Source-Available-39A845?style=flat-square)
 [![GitHub stars](https://img.shields.io/github/stars/HackMan3D/Hackman3D-LayerShot?style=flat-square&logo=github&label=Stars)](https://github.com/HackMan3D/Hackman3D-LayerShot/stargazers)
 [![Downloads](https://img.shields.io/github/downloads/HackMan3D/Hackman3D-LayerShot/total?style=flat-square&logo=github&label=Downloads)](https://github.com/HackMan3D/Hackman3D-LayerShot/releases)
+[![Views](https://hits.sh/github.com/HackMan3D/Hackman3D-LayerShot.svg?style=flat-square&label=Views&color=0A84FF)](https://github.com/HackMan3D/Hackman3D-LayerShot)
 
 Hackman3D LayerShot turns a small ESP32-C3 into an autonomous Bluetooth camera
 shutter for 3D-printing timelapses. It detects layer changes through Moonraker
