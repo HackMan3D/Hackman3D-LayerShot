@@ -10,16 +10,16 @@ or PC application can be closed during the entire print.
 
 ![LayerShot printer dashboard](docs/images/printer-dashboard.png)
 
-## Download — version 1.1.0
+## Download — version 1.2.0
 
 No compilation or Arduino IDE setup is required:
 
-- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-macOS-1.1.0.zip)
-- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-Windows-Setup-1.1.0.exe)
-- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
-- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
-- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
-- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.1.0/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.0/Hackman3D-LayerShot-macOS-1.2.0.zip)
+- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.0/Hackman3D-LayerShot-Windows-Setup-1.2.0.exe)
+- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.0/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
+- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.0/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
+- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.0/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
+- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.0/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
 
 > **Security notice:** these downloads are not yet signed with Apple and
 > Microsoft developer certificates. macOS Gatekeeper or Windows SmartScreen may
@@ -48,8 +48,17 @@ and LayerShot is ready to photograph every layer.
 
 ![Guided printer installation](docs/images/guided-installation.png)
 
-## What is new in 1.1.0
+## What is new in 1.2.0
 
+- four universal Bluetooth HID profiles: Volume +, Volume −, Enter and Space;
+- faster and more reliable ESP discovery on macOS through Bonjour, including
+  automatic recovery after a DHCP address change;
+- a test-shutter action that waits for the configured delay, making the timer
+  directly verifiable from the desktop or ESP dashboard;
+- live 1–5 second timer updates for an already configured phone firmware,
+  without reflashing the ESP32;
+- broader support for phone, tablet, webcam, stop-motion and tethering apps;
+- phone firmware 2.2.0 stores and uses the selected shutter command;
 - GoPro support through the official Open GoPro Bluetooth API;
 - experimental Insta360 GPS Remote emulation for popular camera families;
 - a selectable 1–5 second shutter delay, with 3 seconds selected by default;
@@ -73,6 +82,10 @@ matching firmware:
 |---|---|---|---|
 | iPhone | iPhones supporting Bluetooth keyboard/remote volume keys | Bluetooth HID `Volume +` | Keep Apple's Camera app open |
 | Android | Phones whose camera app can assign a volume key to the shutter | Bluetooth HID `Volume +` | Enable “volume button = shutter” when required; support depends on the phone and camera app |
+| Generic HID — Volume + | Camera and tethering applications accepting Bluetooth Volume + | Bluetooth HID `Volume +` | Assign Volume + to Capture/Shutter and test |
+| Generic HID — Volume − | Camera and tethering applications accepting Bluetooth Volume − | Bluetooth HID `Volume −` | Assign Volume − to Capture/Shutter and test |
+| Generic HID — Enter | Camera, webcam, kiosk and tethering software accepting Enter | Bluetooth keyboard `Enter` | Map Enter to Capture/Shutter |
+| Generic HID — Space | Camera, webcam, stop-motion and tethering software accepting Space | Bluetooth keyboard `Space` | Map Space to Capture/Shutter |
 | DJI | DJI Osmo Action 4, Osmo Action 5 Pro, Osmo Action 6 and Osmo 360 | Official DJI BLE camera protocol | Put the camera in Photo mode and approve pairing on its screen |
 | GoPro | HERO9 Black, HERO10 Black/Bones, HERO11 Black/Mini and HERO12 Black; newer Open GoPro models require LayerShot validation | Official Open GoPro BLE API | Put the camera in Photo mode and open its Connect Device screen |
 | Insta360 — experimental | X3, X4, X5, Ace, Ace Pro and Ace Pro 2 families | Experimental emulation of an Insta360 GPS Bluetooth remote | Compatibility depends on the exact camera firmware; test before printing |
@@ -86,6 +99,29 @@ matching firmware:
 DJI Osmo Action 3 and older models are not listed as compatible by the official
 protocol demo used by this project. Smartphone compatibility can vary because
 manufacturers are free to change how their Camera app handles volume keys.
+
+### Extended phone, tablet and application coverage
+
+The four generic HID profiles make LayerShot usable with many camera
+applications on Samsung Galaxy, Google Pixel, Xiaomi, Redmi, Poco, OnePlus,
+Oppo, Realme, Huawei, Honor, Sony Xperia, Motorola, Nokia and ASUS devices.
+They also cover iPad camera applications plus desktop webcam, stop-motion,
+kiosk and tethering software when that software lets the user map Volume +,
+Volume −, Enter or Space to the shutter.
+
+This is genuine Bluetooth HID compatibility, not a model-name promise: always
+use **Test camera shutter** before a print.
+
+### Interchangeable-lens cameras
+
+Canon BR-E1, Nikon ML-L7, Sony RMT-P1BT, Fujifilm TG-BT1, Panasonic
+DMW-BTR1 and OM System/Olympus RM-WR1 remotes do not share a universal
+Bluetooth shutter protocol. Their manufacturers' desktop SDKs also cannot run
+inside an ESP32-C3. These camera families are therefore not labelled compatible
+until a lawful embedded protocol and physical-camera validation are available.
+For the broadest future DSLR/mirrorless coverage, an isolated wired-shutter
+accessory is the reliable route and can be added without changing autonomous
+layer detection.
 
 ## What LayerShot does
 
@@ -358,7 +394,7 @@ End users should use the ready-to-run downloads above. Contributors need Python
 ```
 
 Both scripts package the shared files under `src/hackman_layershot` and produce
-application version 1.1.0. The Windows script requires Python 3.12 x64,
+application version 1.2.0. The Windows script requires Python 3.12 x64,
 Python 3.10 x86 and Inno Setup 7. It produces one installer that automatically
 selects the correct architecture; end users do not need Python or Inno Setup.
 

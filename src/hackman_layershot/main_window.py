@@ -19,6 +19,10 @@ MODELS = ["K2 Plus", "K2", "K1 Max", "K1C", "K1", "Ender-3 V3 Plus",
 CAMERA_TARGETS = (
     ("camera_iphone", "iphone"),
     ("camera_android", "android"),
+    ("camera_hid_volume_up", "hid_volume_up"),
+    ("camera_hid_volume_down", "hid_volume_down"),
+    ("camera_hid_enter", "hid_enter"),
+    ("camera_hid_space", "hid_space"),
     ("camera_dji", "dji"),
     ("camera_gopro", "gopro"),
     ("camera_insta360", "insta360"),
@@ -290,10 +294,7 @@ class MainWindow(QMainWindow):
                 self.shutter_delay.itemData(index) - saved_delay))
         self.shutter_delay.setCurrentIndex(closest_delay)
         self.shutter_delay.currentIndexChanged.connect(
-            lambda _index: self.settings.setValue(
-                "shutter_delay_ms", self.shutter_delay.currentData()))
-        self.shutter_delay.currentIndexChanged.connect(
-            self.invalidate_camera_step)
+            self.shutter_delay_changed)
         camera_form.addRow(self.T("shutter_delay"), self.shutter_delay)
         camera.layout().addLayout(camera_form)
         camera.layout().addWidget(self.label(self.T("shutter_delay_tip"), "subtitle"))
@@ -411,9 +412,13 @@ class MainWindow(QMainWindow):
         header.addWidget(self.label(self.T("esp_connection"), "section")); header.addStretch()
         self.esp_selector = QComboBox()
         self.esp_selector.setMinimumWidth(260)
+        self.esp_selector.setEditable(True)
+        self.esp_selector.setInsertPolicy(QComboBox.NoInsert)
         self.esp_selector.addItem(
             self.esp_host.text().strip(), self.esp_host.text().strip())
         self.esp_selector.currentIndexChanged.connect(self.select_esp)
+        self.esp_selector.lineEdit().editingFinished.connect(
+            self.select_typed_esp)
         header.addWidget(self.esp_selector)
         header.addWidget(button(self.T("scan_esps"), self.scan_esps))
         header.addWidget(button(self.T("refresh"), self.refresh_esp_status, True))
@@ -486,6 +491,14 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "esp_selector"):
             return
         address = self.esp_selector.itemData(index)
+        if not address:
+            return
+        self.esp_host.setText(address)
+        self.settings.setValue("esp_host", address)
+        self.refresh_esp_status()
+
+    def select_typed_esp(self):
+        address = self.esp_selector.currentText().strip()
         if not address:
             return
         self.esp_host.setText(address)
@@ -583,6 +596,19 @@ class MainWindow(QMainWindow):
         self.camera_step_confirmed = False
         self.update_setup_steps()
 
+    def shutter_delay_changed(self, *_):
+        delay = self.shutter_delay.currentData()
+        self.settings.setValue("shutter_delay_ms", delay)
+        self.invalidate_camera_step()
+        # Once an ESP is installed, apply timer changes immediately. A full
+        # reflash is only needed when selecting a different camera firmware.
+        if self.firmware_ready and self.esp_host.text().strip():
+            self.run(
+                esp_post,
+                (self.esp_host.text().strip(), "delay", {"delay": delay}),
+                lambda _result: self.refresh_esp_status(),
+                lambda _error: None)
+
     def confirm_camera_step(self):
         self.camera_step_confirmed = True
         self.settings.setValue(
@@ -594,6 +620,10 @@ class MainWindow(QMainWindow):
         key = {
             "iphone": "camera_iphone",
             "android": "camera_android",
+            "hid_volume_up": "camera_hid_volume_up",
+            "hid_volume_down": "camera_hid_volume_down",
+            "hid_enter": "camera_hid_enter",
+            "hid_space": "camera_hid_space",
             "dji": "camera_dji",
             "gopro": "camera_gopro",
             "insta360": "camera_insta360",
@@ -605,6 +635,10 @@ class MainWindow(QMainWindow):
         return self.T({
             "iphone": "pairing_guide_iphone",
             "android": "pairing_guide_android",
+            "hid_volume_up": "pairing_guide_hid",
+            "hid_volume_down": "pairing_guide_hid",
+            "hid_enter": "pairing_guide_hid",
+            "hid_space": "pairing_guide_hid",
             "dji": "pairing_guide_dji",
             "gopro": "pairing_guide_gopro",
             "insta360": "pairing_guide_insta360",
@@ -615,6 +649,10 @@ class MainWindow(QMainWindow):
         return self.T({
             "iphone": "compatibility_iphone",
             "android": "compatibility_android",
+            "hid_volume_up": "compatibility_hid_volume_up",
+            "hid_volume_down": "compatibility_hid_volume_down",
+            "hid_enter": "compatibility_hid_enter",
+            "hid_space": "compatibility_hid_space",
             "dji": "compatibility_dji",
             "gopro": "compatibility_gopro",
             "insta360": "compatibility_insta360",
@@ -884,8 +922,9 @@ class MainWindow(QMainWindow):
             if isinstance(delay_ms, (int, float)) and delay_ms >= 0 else "—")
 
     def fail_esp_status(self, error):
+        address = self.esp_host.text().strip() or "hackman-layershot.local"
         self.esp_connection_message.setText(
-            "✕ " + self.T("esp_unreachable") + " — hackman-layershot.local")
+            "✕ " + self.T("esp_unreachable") + " — " + address)
         for label in self.esp_metrics.values():
             label.setText("—")
 

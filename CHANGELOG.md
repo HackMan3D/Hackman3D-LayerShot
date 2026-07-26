@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.2.0 — 2026-07-26
+
+### Extended Bluetooth camera compatibility
+
+- Added generic Bluetooth HID shutter profiles for Volume +, Volume −, Enter
+  and Space.
+- Added guidance for Samsung Galaxy, Google Pixel, Xiaomi/Redmi/Poco,
+  OnePlus/Oppo/Realme, Huawei/Honor, Sony Xperia, Motorola, Nokia and ASUS
+  camera applications.
+- Added support for compatible iPad, webcam, kiosk, stop-motion and tethering
+  applications with configurable capture shortcuts.
+- Updated the autonomous phone firmware to 2.2.0 and stored the selected HID
+  command in the ESP32.
+- Added clear documentation about proprietary Canon, Nikon, Sony, Fujifilm,
+  Panasonic and OM System Bluetooth remote protocols.
+- Fixed ESP discovery on macOS with Bonjour-based detection, stale-IP recovery
+  and an editable manual address fallback.
+- Made the phone firmware's test-shutter command use the configured 1–5 second
+  delay, so the timer can be verified before starting a print.
+- Timer changes are now sent immediately to an already configured phone
+  firmware; reflashing is no longer required just to change the delay.
+
 ## 1.1.0 — 2026-07-26
 
 ### Desktop application
@@ -39,4 +61,3 @@
 - Added sanitized screenshots using fictitious names and reserved IP addresses.
 - Expanded compatibility, installation, pairing, autonomous operation, privacy
   and troubleshooting documentation.
-

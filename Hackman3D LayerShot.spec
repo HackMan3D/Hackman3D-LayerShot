@@ -6,6 +6,11 @@ from PyInstaller.utils.hooks import collect_all
 
 root = Path(SPECPATH)
 assets = root / "src" / "hackman_layershot" / "assets"
+asset_datas = [
+    (str(path), "assets")
+    for path in assets.iterdir()
+    if path.is_file() and " 2" not in path.name
+]
 ffmpeg_datas, ffmpeg_binaries, ffmpeg_hiddenimports = collect_all("imageio_ffmpeg")
 build_arch = os.environ.get("LAYERSHOT_BUILD_ARCH", "x64")
 windows_x86 = sys.platform == "win32" and build_arch == "x86"
@@ -22,7 +27,7 @@ a = Analysis(
     ["run_layershot.py"],
     pathex=[str(root / "src")],
     binaries=esptool_binaries + ffmpeg_binaries,
-    datas=[(str(assets), "assets")] + esptool_datas + ffmpeg_datas,
+    datas=asset_datas + esptool_datas + ffmpeg_datas,
     hiddenimports=["serial.tools.list_ports"] + esptool_hiddenimports
                   + ffmpeg_hiddenimports + platform_hiddenimports,
     hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False,
@@ -40,7 +45,7 @@ if sys.platform == "darwin":
                  bundle_identifier="com.hackman3d.layershot.desktop",
                  info_plist={"CFBundleDisplayName":"Hackman3D LayerShot",
                              "CFBundleName":"Hackman3D LayerShot",
-                             "CFBundleShortVersionString":"1.1.0","CFBundleVersion":"1.1.0",
+                             "CFBundleShortVersionString":"1.2.0","CFBundleVersion":"1.2.0",
                              "NSAppTransportSecurity":{"NSAllowsLocalNetworking":True,
                                                        "NSAllowsArbitraryLoadsInWebContent":True},
                              "NSLocalNetworkUsageDescription":"Hackman3D LayerShot connects to your 3D printers and ESP32 on your local network.",
