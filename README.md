@@ -53,6 +53,8 @@ and LayerShot is ready to photograph every layer.
 - four universal Bluetooth HID profiles: Volume +, Volume −, Enter and Space;
 - faster and more reliable ESP discovery on macOS through Bonjour, including
   automatic recovery after a DHCP address change;
+- a test-shutter action that waits for the configured delay, making the timer
+  directly verifiable from the desktop or ESP dashboard;
 - broader support for phone, tablet, webcam, stop-motion and tethering apps;
 - phone firmware 2.2.0 stores and uses the selected shutter command;
 - GoPro support through the official Open GoPro Bluetooth API;

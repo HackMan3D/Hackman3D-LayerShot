@@ -17,6 +17,8 @@
   Panasonic and OM System Bluetooth remote protocols.
 - Fixed ESP discovery on macOS with Bonjour-based detection, stale-IP recovery
   and an editable manual address fallback.
+- Made the phone firmware's test-shutter command use the configured 1–5 second
+  delay, so the timer can be verified before starting a print.
 
 ## 1.1.0 — 2026-07-26
 

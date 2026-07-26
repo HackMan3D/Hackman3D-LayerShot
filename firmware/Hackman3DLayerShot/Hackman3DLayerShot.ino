@@ -100,6 +100,12 @@ bool triggerShutter() {
   return true;
 }
 
+void scheduleShutter() {
+  shutterPending = true;
+  shutterDueAt = millis() + stabilizationMs;
+  lastCommand = "shutter_scheduled";
+}
+
 String cameraName() {
   if (cameraType == "android") return "Android smartphone";
   if (cameraType == "hid_volume_up") return "Generic BLE HID - Volume Up";
@@ -138,6 +144,7 @@ void setupWeb() {
       ",\"printer_state\":\"" + jsonEscape(printerState) + "\"" +
       ",\"printer_http_code\":" + String(printerHttpCode) +
       ",\"shutter_delay_ms\":" + String(stabilizationMs) +
+      ",\"shutter_pending\":" + String(shutterPending ? "true" : "false") +
       ",\"current_layer\":" + String(lastPrinterLayer) +
       ",\"total_layers\":" + String(printerTotalLayers) +
       ",\"commands\":" + String(commandCount) +
@@ -147,13 +154,9 @@ void setupWeb() {
   });
   web.on("/trigger", HTTP_POST, [] {
     commandCount++;
-    if (triggerShutter()) {
-      lastCommand = "shutter_sent";
-      sendJSON(200, "{\"ok\":true,\"triggered\":true}");
-    } else {
-      lastCommand = "shutter_failed";
-      sendJSON(409, "{\"ok\":false,\"error\":\"camera_not_connected\"}");
-    }
+    scheduleShutter();
+    sendJSON(202, "{\"ok\":true,\"scheduled\":true,\"delay_ms\":" +
+             String(stabilizationMs) + "}");
   });
   web.on("/led-test", HTTP_POST, [] {
     commandCount++; lastCommand = "led_test";
@@ -349,8 +352,7 @@ void pollPrinter() {
       if (lastPrinterLayer >= 0 && currentLayer > lastPrinterLayer && currentLayer > skipLayers &&
           (currentLayer - skipLayers) % max(1, (int)captureEvery) == 0 &&
           (stopAfterLayer == 0 || currentLayer <= stopAfterLayer)) {
-        shutterPending = true;
-        shutterDueAt = millis() + stabilizationMs;
+        scheduleShutter();
       }
       lastPrinterLayer = currentLayer;
     } else if (!layerMonitoringActive) {
@@ -366,7 +368,7 @@ void pollPrinter() {
 void updateScheduledShutter() {
   if (shutterPending && (int32_t)(millis() - shutterDueAt) >= 0) {
     shutterPending = false;
-    triggerShutter();
+    lastCommand = triggerShutter() ? "shutter_sent" : "shutter_failed";
   }
 }
 
