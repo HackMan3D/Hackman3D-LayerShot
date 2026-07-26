@@ -9,7 +9,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "dashboard.h"
 
-static const char *FIRMWARE_VERSION = "2.2.0";
+static const char *FIRMWARE_VERSION = "2.2.1";
 static const char *HOSTNAME = "hackman-layershot";
 static const char *BLE_NAME = "Hackman3D LayerShot";
 static const char *SETUP_AP = "Hackman3D-LayerShot-Setup";
@@ -431,7 +431,7 @@ void updateButton() {
     buttonPressedAt = 0;
     if (duration >= 10000) clearBluetoothBonds();
     else if (duration >= 3000) advertise();
-    else if (duration >= 50) triggerShutter();
+    else if (duration >= 50) scheduleShutter();
   }
 }
 
