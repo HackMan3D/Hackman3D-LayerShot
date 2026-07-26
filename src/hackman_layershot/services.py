@@ -344,6 +344,61 @@ def discover_printers(seed_printers=()):
     return sorted(printers, key=lambda printer: tuple(int(x) for x in printer["host"].split(".")))
 
 _esp_address_cache = {}
+_bonjour_esp_cache = (0.0, [])
+
+def _bonjour_layershot_hosts():
+    """Return LayerShot HTTP hosts advertised through Bonjour on macOS."""
+    global _bonjour_esp_cache
+    if platform.system() != "Darwin":
+        return []
+    cached_at, cached_hosts = _bonjour_esp_cache
+    if cached_hosts and time.monotonic() - cached_at < 15:
+        return list(cached_hosts)
+    try:
+        process = subprocess.run(
+            ["/usr/bin/dns-sd", "-B", "_http._tcp", "local."],
+            capture_output=True, timeout=1, **hidden_subprocess_kwargs())
+    except subprocess.TimeoutExpired as error:
+        output = error.stdout or b""
+    except Exception:
+        return []
+    else:
+        output = process.stdout or b""
+    if isinstance(output, bytes):
+        output = output.decode(errors="replace")
+    aliases = []
+    for line in output.splitlines():
+        match = re.search(
+            r"_http\._tcp\.\s+(hackman-layershot[^\s]*)\s*$",
+            line, re.IGNORECASE)
+        if match:
+            aliases.append(match.group(1).rstrip(".") + ".local")
+    aliases = list(dict.fromkeys(aliases))
+    hosts = []
+    # `gethostbyname()` and curl do not always inherit multicast-DNS
+    # resolution from an ad-hoc signed bundle. Ask Bonjour for the A record
+    # explicitly and prefer its numeric address.
+    for alias in aliases:
+        try:
+            process = subprocess.run(
+                ["/usr/bin/dns-sd", "-G", "v4", alias],
+                capture_output=True, timeout=1, **hidden_subprocess_kwargs())
+        except subprocess.TimeoutExpired as error:
+            address_output = error.stdout or b""
+        except Exception:
+            address_output = b""
+        else:
+            address_output = process.stdout or b""
+        if isinstance(address_output, bytes):
+            address_output = address_output.decode(errors="replace")
+        addresses = re.findall(
+            rf"{re.escape(alias)}\.?\s+(\d+(?:\.\d+){{3}})\s+",
+            address_output, re.IGNORECASE)
+        hosts.extend(addresses)
+        hosts.append(alias)
+    hosts = list(dict.fromkeys(hosts))
+    _bonjour_esp_cache = (time.monotonic(), hosts)
+    return hosts
 
 def _arp_addresses():
     try:
@@ -380,8 +435,10 @@ def _esp_base(host):
     cache_key = hostname.lower()
     cached = _esp_address_cache.get(cache_key)
     candidates = [cached] if cached else []
+    bonjour_hosts = _bonjour_layershot_hosts()
     if platform.system() == "Darwin":
-        for alias in (hostname, "hackman-layershot.local", "espressif.lan"):
+        for alias in (hostname, "hackman-layershot.local",
+                      *bonjour_hosts, "espressif.lan"):
             try:
                 cache_output = subprocess.check_output(
                     ["/usr/bin/dscacheutil", "-q", "host", "-a", "name", alias],
@@ -393,7 +450,7 @@ def _esp_base(host):
     # The ad-hoc macOS network helper can reach local IP addresses but may not
     # inherit multicast-DNS resolution. Resolve .local in the main application
     # process first, then give the helper the resulting numeric address.
-    for alias in (hostname, "hackman-layershot.local"):
+    for alias in (hostname, "hackman-layershot.local", *bonjour_hosts):
         try:
             resolved = socket.gethostbyname(alias)
             if resolved:
@@ -407,6 +464,7 @@ def _esp_base(host):
     candidates.extend([
         "hackman-layershot.local",
     ])
+    candidates.extend(bonjour_hosts)
     candidates.extend(_arp_addresses())
     for candidate in dict.fromkeys(x for x in candidates if x):
         base = f"http://{candidate}" + (f":{port}" if port else "")
@@ -433,22 +491,28 @@ def esp_status(host):
 
 def discover_esps(seed_hosts=()):
     candidates = [str(host).strip() for host in seed_hosts if str(host).strip()]
+    candidates.extend(_bonjour_layershot_hosts())
     candidates.extend(_arp_addresses())
-    for network in _local_ipv4_networks():
-        candidates.extend(str(host) for host in network.hosts())
+    # macOS can deny raw subnet sockets to an ad-hoc signed app. Bonjour and
+    # ARP provide a fast, reliable candidate list there. Windows/Linux keep
+    # the subnet fallback for routers that suppress multicast discovery.
+    if platform.system() != "Darwin":
+        for network in _local_ipv4_networks():
+            candidates.extend(str(host) for host in network.hosts())
     candidates = list(dict.fromkeys(candidates))
 
     def probe(host):
-        try:
-            with socket.create_connection((host, 80), timeout=.18):
-                pass
-        except OSError:
-            return None
+        if platform.system() != "Darwin":
+            try:
+                with socket.create_connection((host, 80), timeout=.18):
+                    pass
+            except OSError:
+                return None
         try:
             status = request_json(f"http://{host}/status", timeout=1)
             if status.get("name") != "Hackman3D LayerShot":
                 return None
-            status["_resolved_address"] = host
+            status["_resolved_address"] = status.get("ip") or host
             return status
         except Exception:
             return None

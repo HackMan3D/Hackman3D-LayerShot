@@ -415,9 +415,13 @@ class MainWindow(QMainWindow):
         header.addWidget(self.label(self.T("esp_connection"), "section")); header.addStretch()
         self.esp_selector = QComboBox()
         self.esp_selector.setMinimumWidth(260)
+        self.esp_selector.setEditable(True)
+        self.esp_selector.setInsertPolicy(QComboBox.NoInsert)
         self.esp_selector.addItem(
             self.esp_host.text().strip(), self.esp_host.text().strip())
         self.esp_selector.currentIndexChanged.connect(self.select_esp)
+        self.esp_selector.lineEdit().editingFinished.connect(
+            self.select_typed_esp)
         header.addWidget(self.esp_selector)
         header.addWidget(button(self.T("scan_esps"), self.scan_esps))
         header.addWidget(button(self.T("refresh"), self.refresh_esp_status, True))
@@ -490,6 +494,14 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "esp_selector"):
             return
         address = self.esp_selector.itemData(index)
+        if not address:
+            return
+        self.esp_host.setText(address)
+        self.settings.setValue("esp_host", address)
+        self.refresh_esp_status()
+
+    def select_typed_esp(self):
+        address = self.esp_selector.currentText().strip()
         if not address:
             return
         self.esp_host.setText(address)
@@ -900,8 +912,9 @@ class MainWindow(QMainWindow):
             if isinstance(delay_ms, (int, float)) and delay_ms >= 0 else "—")
 
     def fail_esp_status(self, error):
+        address = self.esp_host.text().strip() or "hackman-layershot.local"
         self.esp_connection_message.setText(
-            "✕ " + self.T("esp_unreachable") + " — hackman-layershot.local")
+            "✕ " + self.T("esp_unreachable") + " — " + address)
         for label in self.esp_metrics.values():
             label.setText("—")
 
