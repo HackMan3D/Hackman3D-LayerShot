@@ -20,16 +20,16 @@ or PC application can be closed during the entire print.
 
 ![LayerShot printer dashboard](docs/images/printer-dashboard.png)
 
-## Download — version 1.2.2
+## Download — version 1.2.3
 
 No compilation or Arduino IDE setup is required:
 
-- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.2/Hackman3D-LayerShot-macOS-1.2.2.zip)
-- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.2/Hackman3D-LayerShot-Windows-Setup-1.2.2.exe)
-- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.2/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
-- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.2/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
-- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.2/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
-- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.2/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-macOS-1.2.3.zip)
+- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-Windows-Setup-1.2.3.exe)
+- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
+- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
+- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
+- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
 
 > **Security notice:** these downloads are not yet signed with Apple and
 > Microsoft developer certificates. macOS Gatekeeper or Windows SmartScreen may
@@ -58,24 +58,14 @@ and LayerShot is ready to photograph every layer.
 
 ![Guided printer installation](docs/images/guided-installation.png)
 
-## What is new in 1.2.2
+## What is new in 1.2.3
 
-- stable `.local` identities for multiple ESP devices, with current DHCP
-  addresses shown without being permanently stored;
-- phone firmware 2.2.1 makes the physical BOOT test button respect the stored
-  1–5 second shutter delay;
-- four universal Bluetooth HID profiles: Volume +, Volume −, Enter and Space;
-- faster and more reliable ESP discovery on macOS through Bonjour, including
-  automatic recovery after a DHCP address change;
-- a test-shutter action that waits for the configured delay, making the timer
-  directly verifiable from the desktop or ESP dashboard;
-- live 1–5 second timer updates for an already configured phone firmware,
-  without reflashing the ESP32;
-- broader support for phone, tablet, webcam, stop-motion and tethering apps;
-- phone firmware 2.2.0 stores and uses the selected shutter command;
-- GoPro support through the official Open GoPro Bluetooth API;
-- experimental Insta360 GPS Remote emulation for popular camera families;
-- a selectable 1–5 second shutter delay, with 3 seconds selected by default;
+- timelapse previews now apply the orientation metadata embedded by iPhone
+  cameras;
+- preview rotation, crop and aspect ratio now match the rendered video;
+- updated native macOS application and combined 32-bit/64-bit Windows
+  installer;
+- firmware binaries are unchanged from version 1.2.2;
 - multiple LayerShot ESP32 devices can be discovered and managed independently;
 - every ESP receives a readable hostname derived from its printer name;
 - the selected printer is now always written to the ESP during installation;
@@ -408,7 +398,7 @@ End users should use the ready-to-run downloads above. Contributors need Python
 ```
 
 Both scripts package the shared files under `src/hackman_layershot` and produce
-application version 1.2.2. The Windows script requires Python 3.12 x64,
+application version 1.2.3. The Windows script requires Python 3.12 x64,
 Python 3.10 x86 and Inno Setup 7. It produces one installer that automatically
 selects the correct architecture; end users do not need Python or Inno Setup.
 

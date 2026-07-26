@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.3 — 2026-07-26
+
+- Fixed the timelapse preview for iPhone photos with embedded orientation
+  metadata.
+- The preview and generated video now apply the same phone orientation before
+  the selected rotation, crop and aspect-ratio settings.
+
 ## 1.2.2 — 2026-07-26
 
 ### Stable multi-ESP addressing
