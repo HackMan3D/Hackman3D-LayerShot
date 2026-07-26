@@ -408,7 +408,7 @@ End users should use the ready-to-run downloads above. Contributors need Python
 ```
 
 Both scripts package the shared files under `src/hackman_layershot` and produce
-application version 1.2.2. The Windows script requires Python 3.12 x64,
+application version 1.2.3. The Windows script requires Python 3.12 x64,
 Python 3.10 x86 and Inno Setup 7. It produces one installer that automatically
 selects the correct architecture; end users do not need Python or Inno Setup.
 

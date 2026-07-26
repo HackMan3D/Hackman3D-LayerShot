@@ -2,8 +2,8 @@ import json, os, platform, re, shutil, subprocess, sys, time
 from ctypes import c_void_p
 from pathlib import Path
 from .qt_compat import (
-    QT_BINDING, QColor, QDesktopServices, QIcon, QPainter, QPixmap, QTransform,
-    QObject, QRunnable, QSettings,
+    QT_BINDING, QColor, QDesktopServices, QIcon, QImageReader, QPainter,
+    QPixmap, QTransform, QObject, QRunnable, QSettings,
     QSize, QThreadPool, QTimer, Qt, Signal, QUrl,
     QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout, QHBoxLayout, QLabel,
     QLineEdit, QMainWindow, QMessageBox, QProgressBar, QPushButton, QScrollArea,
@@ -1282,7 +1282,13 @@ class MainWindow(QMainWindow):
         if not images:
             self.crop_preview.setText("No compatible photo")
             return
-        source = QPixmap(str(images[0]))
+        # Match FFmpeg's default behavior for phone photos: first apply the
+        # EXIF orientation, then apply the rotation selected in LayerShot.
+        # QPixmap(path) ignores that metadata on some Qt/macOS combinations,
+        # which previously made the preview disagree with the final video.
+        reader = QImageReader(str(images[0]))
+        reader.setAutoTransform(True)
+        source = QPixmap.fromImage(reader.read())
         if source.isNull():
             ffmpeg = self.find_ffmpeg()
             preview_file = Path("/private/tmp") / "layershot-format-preview.jpg"
@@ -1387,7 +1393,9 @@ class MainWindow(QMainWindow):
         codec=["libx264","libx265"][self.codec.currentIndex()]
         crf=[18,23,28][self.quality.currentIndex()]
         def task():
-            command=[ffmpeg,"-y","-r",str(self.fps.value()),"-f","concat","-safe","0","-i",str(manifest)]
+            command=[
+                ffmpeg, "-y", "-r", str(self.fps.value()),
+                "-f", "concat", "-safe", "0", "-i", str(manifest)]
             if filters: command.extend(["-vf",",".join(filters)])
             command.extend(["-c:v",codec,"-crf",str(crf),"-pix_fmt","yuv420p",output])
             subprocess.run(
