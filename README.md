@@ -267,7 +267,7 @@ LayerShot uses its bundled FFmpeg when available and can also use a system
 installation. Landscape, square, portrait, Story/Reel and other common social
 formats can be created without modifying the source photos.
 
-![LayerShot timelapse controls](docs/images/timelapse-controls.png)
+
 
 ## Supported languages
 
