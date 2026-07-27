@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.9 — 2026-07-27
+
+- Rebuilds the Phone firmware as genuine 2.2.2 with USB CDC enabled on boot.
+- Restores the configured 1–5 second shutter delay for BOOT, web and layer
+  triggers.
+- Rejects firmware downloads whose embedded version does not match the GitHub
+  catalogue, preventing silent installation of an incorrectly labelled asset.
+- Retries transient macOS USB-port locks and bounds the flashing operation.
+- Uses local-network configuration after firmware updates when the ESP is
+  already reachable.
+- Fixes Windows firmware downloads and camera setup by restoring the missing
+  `shutil` dependency.
+
 ## 1.2.8 — 2026-07-27
 
 - Keeps **Activate / repair camera in Klipper** available on every printer card.
