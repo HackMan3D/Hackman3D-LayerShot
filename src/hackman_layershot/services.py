@@ -162,6 +162,12 @@ def printer_camera_info(host, port):
     base = f"http://{hostname}:{moonraker_port}"
     response = request_json(base + "/server/webcams/list", timeout=3)
     webcams = response.get("result", {}).get("webcams", [])
+    webcams = sorted(
+        webcams,
+        key=lambda webcam: (
+            webcam.get("name") != "LayerShot Camera",
+            ":8000" not in str(webcam.get("stream_url") or ""),
+        ))
     for webcam in webcams:
         if not webcam.get("enabled", True):
             continue
@@ -169,6 +175,10 @@ def printer_camera_info(host, port):
             hostname, moonraker_port, webcam.get("stream_url"))
         if not stream_url:
             continue
+        parsed_stream = urllib.parse.urlsplit(stream_url)
+        if (parsed_stream.port == 8000
+                and not _creality_root_has_viewer(hostname)):
+            stream_url = f"http://{hostname}:8000/?layershot_player=1"
         return {
             "configured": True,
             "name": webcam.get("name") or "Camera",
@@ -177,6 +187,7 @@ def printer_camera_info(host, port):
             "snapshot_url": _absolute_camera_url(
                 hostname, moonraker_port, webcam.get("snapshot_url")),
             "source": webcam.get("source") or "",
+            "uid": webcam.get("uid") or "",
         }
     return {
         "configured": False,
@@ -185,10 +196,11 @@ def printer_camera_info(host, port):
         "stream_url": "",
         "snapshot_url": "",
         "source": "",
+        "uid": "",
     }
 
-def _creality_webrtc_available(host):
-    """Detect Creality's local WebRTC server used by K2/SparkX cameras."""
+def _creality_root_has_viewer(host):
+    """Return whether Creality serves its own WebRTC viewer page."""
     url = f"http://{host}:8000/"
     if platform.system() == "Darwin":
         command = [
@@ -208,6 +220,29 @@ def _creality_webrtc_available(host):
         "RTCPeerConnection" in html
         and "/call/webrtc_local" in html)
 
+def _creality_webrtc_available(host):
+    """Detect Creality's local WebRTC server used by K2/SparkX cameras."""
+    if _creality_root_has_viewer(host):
+        return True
+    if platform.system() == "Darwin":
+        result = subprocess.run(
+            [
+                "/usr/bin/curl", "--silent", "--output", "/dev/null",
+                "--write-out", "%{http_code}", "--connect-timeout", "2",
+                "--max-time", "3",
+                f"http://{host}:8000/call/webrtc_local",
+            ],
+            capture_output=True, text=True, timeout=4)
+        return result.returncode == 0 and result.stdout.strip() == "200"
+    else:
+        try:
+            with urllib.request.urlopen(
+                    f"http://{host}:8000/call/webrtc_local",
+                    timeout=3) as response:
+                return response.status == 200
+        except Exception:
+            return False
+
 def configure_printer_camera(host, port):
     """Register Creality's existing WebRTC stream in Moonraker.
 
@@ -216,12 +251,18 @@ def configure_printer_camera(host, port):
     """
     hostname, address_port = normalize_host(host)
     moonraker_port = address_port or port
-    current = printer_camera_info(hostname, moonraker_port)
-    if current["configured"]:
-        return current
     if not _creality_webrtc_available(hostname):
         raise RuntimeError(
-            "No active Creality camera stream was found on this printer.")
+            "The Creality video service is not responding. Check that the "
+            "camera is enabled in the printer settings and physically connected.")
+    response = request_json(
+        f"http://{hostname}:{moonraker_port}/server/webcams/list", timeout=3)
+    webcams = response.get("result", {}).get("webcams", [])
+    existing = next(
+        (webcam for webcam in webcams
+         if webcam.get("name") == "LayerShot Camera"
+         and webcam.get("source") == "database"),
+        None)
     payload = {
         "name": "LayerShot Camera",
         "location": "printer",
@@ -233,6 +274,8 @@ def configure_printer_camera(host, port):
         "target_fps_idle": 5,
         "aspect_ratio": "16:9",
     }
+    if existing and existing.get("uid"):
+        payload["uid"] = existing["uid"]
     result = request_json(
         f"http://{hostname}:{moonraker_port}/server/webcams/item",
         method="POST", payload=payload, timeout=5)

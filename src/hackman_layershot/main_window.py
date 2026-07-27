@@ -79,6 +79,44 @@ class CameraView(QWidget):
           `;
         })();
     """
+    CREALITY_WEBRTC_DOCUMENT = """<!doctype html>
+      <html><head><meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1">
+      <style>
+        html,body { width:100%; height:100%; margin:0; overflow:hidden;
+                    background:#0d1016; }
+        video { position:fixed; inset:0; width:100%; height:100%;
+                object-fit:contain; background:#0d1016; }
+      </style></head><body><video id="camera" autoplay muted playsinline></video>
+      <script>
+        const pc = new RTCPeerConnection({
+          iceServers:[{urls:'stun:stun.l.google.com:19302'}]
+        });
+        pc.ontrack = event => {
+          const video = document.getElementById('camera');
+          video.srcObject = event.streams[0];
+          video.play().catch(() => {});
+        };
+        pc.onicecandidate = event => {
+          if (event.candidate !== null) return;
+          const request = new XMLHttpRequest();
+          request.onreadystatechange = function() {
+            if (this.readyState === 4 && this.status === 200) {
+              const answer = JSON.parse(atob(this.responseText));
+              if (answer.type === 'answer') {
+                pc.setRemoteDescription(new RTCSessionDescription(answer));
+              }
+            }
+          };
+          request.open('POST', '/call/webrtc_local');
+          request.setRequestHeader('Content-Type', 'plain/text');
+          request.send(btoa(JSON.stringify({
+            type:'offer', sdp:pc.localDescription.sdp
+          })));
+        };
+        pc.addTransceiver('video', {direction:'sendrecv'});
+        pc.createOffer().then(offer => pc.setLocalDescription(offer));
+      </script></body></html>"""
 
     def __init__(self, camera_url, parent=None):
         super().__init__(parent)
@@ -94,6 +132,7 @@ class CameraView(QWidget):
 
     def create_web_view(self):
         camera_url = self.camera_url
+        is_creality_webrtc = "layershot_player=1" in camera_url
         if platform.system() == "Darwin":
             import objc, WebKit
             from Foundation import NSURL, NSURLRequest
@@ -109,7 +148,11 @@ class CameraView(QWidget):
             self.web_view.setAutoresizingMask_(18)
             native_view.addSubview_(self.web_view)
             url = NSURL.URLWithString_(camera_url)
-            self.web_view.loadRequest_(NSURLRequest.requestWithURL_(url))
+            if is_creality_webrtc:
+                self.web_view.loadHTMLString_baseURL_(
+                    self.CREALITY_WEBRTC_DOCUMENT, url)
+            else:
+                self.web_view.loadRequest_(NSURLRequest.requestWithURL_(url))
         else:
             import importlib
             QWebEngineView = importlib.import_module(
@@ -121,7 +164,11 @@ class CameraView(QWidget):
             self.web_view.loadFinished.connect(
                 lambda _ok: self.web_view.page().runJavaScript(
                     self.FIT_CAMERA_SCRIPT))
-            self.web_view.setUrl(QUrl(camera_url))
+            if is_creality_webrtc:
+                self.web_view.setHtml(
+                    self.CREALITY_WEBRTC_DOCUMENT, QUrl(camera_url))
+            else:
+                self.web_view.setUrl(QUrl(camera_url))
 
 class WorkerSignals(QObject):
     done = Signal(object)
@@ -1017,7 +1064,6 @@ class MainWindow(QMainWindow):
             camera_setup_button=button(
                 self.T("camera_configure"),
                 lambda checked=False,x=p:self.configure_camera(x))
-            camera_setup_button.hide()
             c.layout().addWidget(camera_setup_button,0,Qt.AlignLeft)
             self.printer_grid.addWidget(c,i//2,i%2)
             self.cards[p["id"]]=(state[1],layer[1],progress[1],filename,bar)
@@ -1051,7 +1097,7 @@ class MainWindow(QMainWindow):
         item["message"].setText(
             self.T("camera_ready").format(name=data.get("name") or "Camera")
             if data.get("configured") else self.T("camera_not_configured"))
-        item["setup_button"].setVisible(not data.get("configured"))
+        item["setup_button"].show()
         if not data.get("configured") or item["view"] is not None:
             return
         view = CameraView(data["stream_url"])
