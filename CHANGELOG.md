@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.5 — 2026-07-27
+
+- Correctly reconstructs tiled iPhone HEIC/HEIF photos before rendering.
+- Prevents FFmpeg from using a single 512×512 HEIC tile as the full frame.
+- Uses the same full-resolution HEIC conversion for the preview and video.
+- Leaves all original photos untouched by using temporary converted frames.
+
 ## 1.2.4 — 2026-07-26
 
 - Detects obsolete firmware on each connected LayerShot ESP32.

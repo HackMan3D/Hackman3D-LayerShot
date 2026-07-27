@@ -4,9 +4,13 @@
     "iphone": {
       "latest": {
         "version": "2.2.1",
-        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-Phone.bin"
+        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-ESP32-C3-Phone.bin"
       },
       "history": [
+        {
+          "version": "2.2.1 (LayerShot 1.2.4)",
+          "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-Phone.bin"
+        },
         {
           "version": "2.2.1 (LayerShot 1.2.3)",
           "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-Phone.bin"
@@ -21,9 +25,13 @@
     "dji": {
       "latest": {
         "version": "2.1.0-DJI",
-        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-DJI.bin"
+        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-ESP32-C3-DJI.bin"
       },
       "history": [
+        {
+          "version": "2.1.0-DJI (LayerShot 1.2.4)",
+          "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-DJI.bin"
+        },
         {
           "version": "2.1.0-DJI (LayerShot 1.2.3)",
           "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-DJI.bin"
@@ -33,9 +41,13 @@
     "gopro": {
       "latest": {
         "version": "2.2.0-gopro",
-        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-GoPro.bin"
+        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-ESP32-C3-GoPro.bin"
       },
       "history": [
+        {
+          "version": "2.2.0-gopro (LayerShot 1.2.4)",
+          "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-GoPro.bin"
+        },
         {
           "version": "2.2.0-gopro (LayerShot 1.2.3)",
           "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-GoPro.bin"
@@ -45,9 +57,13 @@
     "insta360": {
       "latest": {
         "version": "2.2.0-insta360-exp",
-        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin"
+        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin"
       },
       "history": [
+        {
+          "version": "2.2.0-insta360-exp (LayerShot 1.2.4)",
+          "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.4/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin"
+        },
         {
           "version": "2.2.0-insta360-exp (LayerShot 1.2.3)",
           "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.3/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin"
