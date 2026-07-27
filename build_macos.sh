@@ -20,12 +20,12 @@ COPYFILE_DISABLE=1 tar --no-xattrs -cf - -C "$SIGN_DIR" "Hackman3D LayerShot.app
 codesign --force --deep --sign - "$CLEAN_DIR/Hackman3D LayerShot.app"
 codesign --verify --deep --strict "$CLEAN_DIR/Hackman3D LayerShot.app"
 rm -rf "$ROOT/releases/Hackman3D LayerShot.app"
-rm -f "$ROOT/releases/Hackman3D-LayerShot-macOS-1.2.4.zip"
+rm -f "$ROOT/releases/Hackman3D-LayerShot-macOS-1.2.5.zip"
 ditto --norsrc "$CLEAN_DIR/Hackman3D LayerShot.app" "$ROOT/releases/Hackman3D LayerShot.app"
 ditto -c -k --norsrc --keepParent \
   "$CLEAN_DIR/Hackman3D LayerShot.app" \
-  "$CLEAN_DIR/Hackman3D-LayerShot-macOS-1.2.4.zip"
-ditto --norsrc "$CLEAN_DIR/Hackman3D-LayerShot-macOS-1.2.4.zip" \
-  "$ROOT/releases/Hackman3D-LayerShot-macOS-1.2.4.zip"
+  "$CLEAN_DIR/Hackman3D-LayerShot-macOS-1.2.5.zip"
+ditto --norsrc "$CLEAN_DIR/Hackman3D-LayerShot-macOS-1.2.5.zip" \
+  "$ROOT/releases/Hackman3D-LayerShot-macOS-1.2.5.zip"
 echo "Created releases/Hackman3D LayerShot.app"
-echo "Created releases/Hackman3D-LayerShot-macOS-1.2.4.zip"
+echo "Created releases/Hackman3D-LayerShot-macOS-1.2.5.zip"

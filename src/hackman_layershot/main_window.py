@@ -1,4 +1,4 @@
-import json, os, platform, re, shutil, subprocess, sys, time
+import json, os, platform, re, shutil, subprocess, sys, tempfile, time
 from ctypes import c_void_p
 from pathlib import Path
 from .qt_compat import (
@@ -1468,7 +1468,18 @@ class MainWindow(QMainWindow):
         if source.isNull():
             ffmpeg = self.find_ffmpeg()
             preview_file = Path("/private/tmp") / "layershot-format-preview.jpg"
-            if ffmpeg:
+            # FFmpeg 7.1 currently decodes some tiled iPhone HEIC files as a
+            # single 512×512 tile. macOS ImageIO (through sips) correctly
+            # reconstructs the complete photo and applies its orientation.
+            if (platform.system() == "Darwin" and
+                    images[0].suffix.lower() in (".heic", ".heif")):
+                subprocess.run(
+                    ["/usr/bin/sips", "-s", "format", "jpeg",
+                     str(images[0]), "--out", str(preview_file)],
+                    check=False, capture_output=True,
+                    **hidden_subprocess_kwargs())
+                source = QPixmap(str(preview_file))
+            elif ffmpeg:
                 subprocess.run(
                     [ffmpeg, "-y", "-v", "error", "-i", str(images[0]),
                      "-frames:v", "1", str(preview_file)],
@@ -1545,7 +1556,6 @@ class MainWindow(QMainWindow):
                 if p.suffix.lower() in SUPPORTED_IMAGE_SUFFIXES]
         images=sorted(images,key=(lambda p:p.stat().st_mtime) if self.sort_order.currentIndex() else (lambda p:p.name.lower()))
         if not images: QMessageBox.warning(self,"LayerShot","No compatible photos found."); return
-        manifest=photos/".layershot-input.txt"; manifest.write_text("".join(f"file '{str(p).replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}'\n" for p in images))
         self.render_progress.setRange(0,0)
         dimensions=self.ratio.currentData()
         filters=[]
@@ -1569,15 +1579,43 @@ class MainWindow(QMainWindow):
         codec=["libx264","libx265"][self.codec.currentIndex()]
         crf=[18,23,28][self.quality.currentIndex()]
         def task():
-            command=[
-                ffmpeg, "-y", "-r", str(self.fps.value()),
-                "-f", "concat", "-safe", "0", "-i", str(manifest)]
-            if filters: command.extend(["-vf",",".join(filters)])
-            command.extend(["-c:v",codec,"-crf",str(crf),"-pix_fmt","yuv420p",output])
-            subprocess.run(
-                command, check=True, capture_output=True,
-                **hidden_subprocess_kwargs())
-            manifest.unlink(missing_ok=True); return True
+            with tempfile.TemporaryDirectory(
+                    prefix="layershot-render-") as temporary_folder:
+                temporary = Path(temporary_folder)
+                render_images = []
+                for index, image in enumerate(images):
+                    if (platform.system() == "Darwin" and
+                            image.suffix.lower() in (".heic", ".heif")):
+                        converted = temporary / f"frame-{index:06d}.jpg"
+                        conversion = subprocess.run(
+                            ["/usr/bin/sips", "-s", "format", "jpeg",
+                             str(image), "--out", str(converted)],
+                            check=False, capture_output=True, text=True,
+                            **hidden_subprocess_kwargs())
+                        if conversion.returncode or not converted.exists():
+                            raise RuntimeError(
+                                "Unable to decode the complete HEIC photo: "
+                                f"{image.name}\n\n"
+                                + (conversion.stderr or conversion.stdout))
+                        render_images.append(converted)
+                    else:
+                        render_images.append(image)
+                manifest = temporary / "layershot-input.txt"
+                manifest.write_text("".join(
+                    "file '" +
+                    str(path).replace("'", "'\\''") +
+                    "'\n" for path in render_images))
+                command=[
+                    ffmpeg, "-y", "-r", str(self.fps.value()),
+                    "-f", "concat", "-safe", "0", "-i", str(manifest)]
+                if filters: command.extend(["-vf",",".join(filters)])
+                command.extend([
+                    "-c:v",codec,"-crf",str(crf),
+                    "-pix_fmt","yuv420p",output])
+                subprocess.run(
+                    command, check=True, capture_output=True,
+                    **hidden_subprocess_kwargs())
+            return True
         self.run(task,done=lambda _:(self.render_progress.setRange(0,100),self.render_progress.setValue(100),QMessageBox.information(self,"LayerShot","Timelapse created.")),
                  failed=lambda e:(self.render_progress.setRange(0,100),QMessageBox.warning(self,"LayerShot",e)))
 
