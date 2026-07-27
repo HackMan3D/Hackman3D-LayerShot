@@ -9,7 +9,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "dashboard.h"
 
-static const char *FIRMWARE_VERSION = "2.2.0-gopro";
+static const char *FIRMWARE_VERSION = "2.2.1-gopro";
 static const char *HOSTNAME = "hackman-layershot";
 static const char *DEVICE_NAME = "Hackman3D LayerShot";
 static const char *BLE_NAME = "Hackman3D LayerShot GoPro";
@@ -46,6 +46,13 @@ bool blinkOn = false;
 String serialLine;
 String cameraType = "gopro";
 String deviceHostname = HOSTNAME;
+String wifiSsid;
+String wifiPassword;
+String preferredIp;
+String preferredGateway;
+String preferredNetmask;
+String preferredDns;
+uint32_t lastWiFiReconnectAttempt = 0;
 String printerHost;
 uint16_t printerPort = 4408;
 uint16_t captureEvery = 1;
@@ -257,6 +264,10 @@ void setupWeb() {
     preferences.begin("layershot", false);
     preferences.putString("ssid", ssid);
     preferences.putString("password", web.arg("password"));
+    preferences.remove("static_ip");
+    preferences.remove("gateway");
+    preferences.remove("netmask");
+    preferences.remove("dns");
     preferences.end();
     sendJSON(200, "{\"ok\":true,\"restarting\":true}");
     delay(500);
@@ -364,6 +375,10 @@ void handleSerialProvisioning() {
         preferences.putString("camera", newCamera);
         String newHostname = serialField(serialLine, 10);
         if (!newHostname.isEmpty()) preferences.putString("hostname", newHostname);
+        preferences.putString("static_ip", serialField(serialLine, 11));
+        preferences.putString("gateway", serialField(serialLine, 12));
+        preferences.putString("netmask", serialField(serialLine, 13));
+        preferences.putString("dns", serialField(serialLine, 14));
         preferences.putBool("autonomous", true);
         preferences.end();
         Serial.println("LAYERSHOT_CONFIG_OK");
@@ -441,17 +456,48 @@ void updateScheduledShutter() {
   }
 }
 
+void applyPreferredNetwork() {
+  if (preferredIp.isEmpty()) return;
+  IPAddress address, gateway, netmask, dns;
+  if (address.fromString(preferredIp) &&
+      gateway.fromString(preferredGateway) &&
+      netmask.fromString(preferredNetmask) &&
+      dns.fromString(preferredDns)) {
+    WiFi.config(address, gateway, netmask, dns);
+  }
+}
+
+void startWiFiServices() {
+  if (!otaReady) {
+    MDNS.begin(deviceHostname.c_str());
+    MDNS.addService("http", "tcp", 80);
+    ArduinoOTA.setHostname(deviceHostname.c_str());
+    ArduinoOTA.setPassword("layershot");
+    ArduinoOTA.begin();
+    otaReady = true;
+  }
+  WiFi.softAPdisconnect(true);
+  wifiError = false;
+}
+
 void connectWiFi() {
   preferences.begin("layershot", true);
-  String ssid = preferences.getString("ssid", "");
-  String password = preferences.getString("password", "");
+  wifiSsid = preferences.getString("ssid", "");
+  wifiPassword = preferences.getString("password", "");
+  preferredIp = preferences.getString("static_ip", "");
+  preferredGateway = preferences.getString("gateway", "");
+  preferredNetmask = preferences.getString("netmask", "");
+  preferredDns = preferences.getString("dns", "");
   preferences.end();
 
   WiFi.setHostname(deviceHostname.c_str());
-  if (!ssid.isEmpty()) {
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(false);
+  if (!wifiSsid.isEmpty()) {
     wifiConnecting = true;
     WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid.c_str(), password.c_str());
+    applyPreferredNetwork();
+    WiFi.begin(wifiSsid.c_str(), wifiPassword.c_str());
     uint32_t started = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - started < 18000) {
       // The desktop app provisions the freshly flashed board over USB.
@@ -466,17 +512,28 @@ void connectWiFi() {
     wifiConnecting = false;
   }
   if (WiFi.status() != WL_CONNECTED) {
-    wifiError = !ssid.isEmpty();
+    wifiError = !wifiSsid.isEmpty();
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(SETUP_AP);
   } else {
-    MDNS.begin(deviceHostname.c_str());
-    MDNS.addService("http", "tcp", 80);
-    ArduinoOTA.setHostname(deviceHostname.c_str());
-    ArduinoOTA.setPassword("layershot");
-    ArduinoOTA.begin();
-    otaReady = true;
+    startWiFiServices();
   }
+}
+
+void maintainWiFi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!otaReady) startWiFiServices();
+    return;
+  }
+  if (wifiSsid.isEmpty() || millis() - lastWiFiReconnectAttempt < 10000) return;
+  lastWiFiReconnectAttempt = millis();
+  wifiConnecting = true;
+  WiFi.mode(WIFI_AP_STA);
+  applyPreferredNetwork();
+  WiFi.disconnect(false, false);
+  WiFi.begin(wifiSsid.c_str(), wifiPassword.c_str());
+  wifiConnecting = false;
+  wifiError = true;
 }
 
 void updateButton() {
@@ -546,6 +603,7 @@ void setup() {
 void loop() {
   updateGoProConnection();
   handleSerialProvisioning();
+  maintainWiFi();
   web.handleClient();
   if (otaReady) ArduinoOTA.handle();
   updateButton();

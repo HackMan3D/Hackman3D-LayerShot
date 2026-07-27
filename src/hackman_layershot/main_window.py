@@ -10,7 +10,7 @@ from .qt_compat import (
     QSpinBox, QStackedWidget, QVBoxLayout, QWidget
 )
 from . import __version__
-from .services import asset_path, discover_esps, discover_printers, download_firmware_url, download_release_asset, esp_post, esp_status, hidden_subprocess_kwargs, known_wifi_networks, known_wifi_password, latest_firmware_catalog, latest_layershot_release, printer_status, save_wifi_password, serial_ports
+from .services import asset_path, configure_printer_camera, discover_esps, discover_printers, download_firmware_url, download_release_asset, esp_post, esp_status, find_available_ipv4_addresses, hidden_subprocess_kwargs, ipv4_address_is_available, known_wifi_networks, known_wifi_password, latest_firmware_catalog, latest_layershot_release, printer_camera_info, printer_status, save_wifi_password, serial_ports
 from .translations import LANGUAGES, tr
 
 MODELS = ["K2 Plus", "K2", "K1 Max", "K1C", "K1", "Ender-3 V3 Plus",
@@ -28,15 +28,15 @@ CAMERA_TARGETS = (
     ("camera_insta360", "insta360"),
 )
 FIRMWARE_VERSIONS = {
-    "iphone": "2.2.1",
-    "android": "2.2.1",
-    "hid_volume_up": "2.2.1",
-    "hid_volume_down": "2.2.1",
-    "hid_enter": "2.2.1",
-    "hid_space": "2.2.1",
-    "dji": "2.1.0-DJI",
-    "gopro": "2.2.0-gopro",
-    "insta360": "2.2.0-insta360-exp",
+    "iphone": "2.2.2",
+    "android": "2.2.2",
+    "hid_volume_up": "2.2.2",
+    "hid_volume_down": "2.2.2",
+    "hid_enter": "2.2.2",
+    "hid_space": "2.2.2",
+    "dji": "2.1.1-DJI",
+    "gopro": "2.2.1-gopro",
+    "insta360": "2.2.1-insta360-exp",
 }
 LEGACY_FIRMWARE_RELEASES = (
     "v1.2.3", "v1.2.2", "v1.2.1", "v1.2.0", "v1.1.0", "v0.6.0",
@@ -47,9 +47,42 @@ SUPPORTED_IMAGE_SUFFIXES = {
 }
 
 class CameraView(QWidget):
-    def __init__(self, host, port, parent=None):
+    FIT_CAMERA_SCRIPT = """
+        (() => {
+          let viewport = document.querySelector('meta[name="viewport"]');
+          if (!viewport) {
+            viewport = document.createElement('meta');
+            viewport.name = 'viewport';
+            document.head.appendChild(viewport);
+          }
+          viewport.content = 'width=device-width,initial-scale=1,maximum-scale=1';
+          let style = document.getElementById('layershot-camera-fit');
+          if (!style) {
+            style = document.createElement('style');
+            style.id = 'layershot-camera-fit';
+            document.head.appendChild(style);
+          }
+          style.textContent = `
+            html, body {
+              width: 100% !important; height: 100% !important;
+              margin: 0 !important; padding: 0 !important;
+              overflow: hidden !important; background: #0d1016 !important;
+            }
+            video, img {
+              position: fixed !important; inset: 0 !important;
+              display: block !important; z-index: 1 !important;
+              width: 100% !important; height: 100% !important;
+              max-width: 100% !important; max-height: 100% !important;
+              object-fit: contain !important; margin: 0 !important;
+              transform: none !important;
+            }
+          `;
+        })();
+    """
+
+    def __init__(self, camera_url, parent=None):
         super().__init__(parent)
-        self.host, self.port, self.web_view = host, port, None
+        self.camera_url, self.web_view = camera_url, None
         if platform.system() == "Darwin":
             self.setAttribute(Qt.WA_NativeWindow)
         self.setMinimumHeight(300)
@@ -60,12 +93,19 @@ class CameraView(QWidget):
             QTimer.singleShot(0, self.create_web_view)
 
     def create_web_view(self):
-        camera_url = f"http://{self.host}:{self.port}/camera.html"
+        camera_url = self.camera_url
         if platform.system() == "Darwin":
             import objc, WebKit
             from Foundation import NSURL, NSURLRequest
             native_view = objc.objc_object(c_void_p=int(self.winId()))
-            self.web_view = WebKit.WKWebView.alloc().initWithFrame_(native_view.bounds())
+            configuration = WebKit.WKWebViewConfiguration.alloc().init()
+            script = WebKit.WKUserScript.alloc().initWithSource_injectionTime_forMainFrameOnly_(
+                self.FIT_CAMERA_SCRIPT,
+                WebKit.WKUserScriptInjectionTimeAtDocumentEnd,
+                False)
+            configuration.userContentController().addUserScript_(script)
+            self.web_view = WebKit.WKWebView.alloc().initWithFrame_configuration_(
+                native_view.bounds(), configuration)
             self.web_view.setAutoresizingMask_(18)
             native_view.addSubview_(self.web_view)
             url = NSURL.URLWithString_(camera_url)
@@ -78,6 +118,9 @@ class CameraView(QWidget):
             layout.setContentsMargins(0, 0, 0, 0)
             self.web_view = QWebEngineView(self)
             layout.addWidget(self.web_view)
+            self.web_view.loadFinished.connect(
+                lambda _ok: self.web_view.page().runJavaScript(
+                    self.FIT_CAMERA_SCRIPT))
             self.web_view.setUrl(QUrl(camera_url))
 
 class WorkerSignals(QObject):
@@ -287,8 +330,22 @@ class MainWindow(QMainWindow):
             self.settings.setValue("esp_host", saved_esp_host)
         self.esp_host = QLineEdit(saved_esp_host)
         wf.addRow(self.T("ssid"),self.ssid); wf.addRow(self.T("password"),password_row); wf.addRow(self.T("esp_address"),self.esp_host)
+        self.use_static_ip = QCheckBox(self.T("use_static_ip"))
+        self.use_static_ip.toggled.connect(self.static_ip_toggled)
+        self.static_ip = QComboBox()
+        self.static_ip.setEditable(True)
+        self.static_ip.setEnabled(False)
+        static_ip_row = QHBoxLayout()
+        static_ip_row.setSpacing(8)
+        static_ip_row.addWidget(self.static_ip, 1)
+        self.find_static_ip_button = button(
+            self.T("find_free_ip"), self.find_free_ip)
+        self.find_static_ip_button.setEnabled(False)
+        static_ip_row.addWidget(self.find_static_ip_button)
+        wf.addRow(self.use_static_ip, static_ip_row)
         w.layout().addLayout(wf)
         w.layout().addWidget(self.label(self.T("wifi_24_tip"), "good"))
+        w.layout().addWidget(self.label(self.T("static_ip_tip"), "subtitle"))
         lay.addWidget(w)
         camera = card()
         self.setup_camera_card = camera
@@ -949,18 +1006,30 @@ class MainWindow(QMainWindow):
             bar=QProgressBar(); c.layout().addWidget(bar)
             camera_host=QWidget(); camera_layout=QVBoxLayout(camera_host)
             camera_layout.setContentsMargins(0,0,0,0)
-            camera_view = CameraView(p["host"], p["port"])
-            camera_layout.addWidget(camera_view)
+            camera_message = self.label(self.T("camera_checking"), "subtitle")
+            camera_layout.addWidget(camera_message)
             c.layout().addWidget(camera_host)
             camera_button=button(self.T("camera_show"),lambda checked=False,x=p:self.toggle_camera(x["id"]))
             camera_button.setCheckable(True)
             camera_button.setChecked(True)
             camera_button.setText(self.T("camera_hide"))
             c.layout().addWidget(camera_button,0,Qt.AlignLeft)
+            camera_setup_button=button(
+                self.T("camera_configure"),
+                lambda checked=False,x=p:self.configure_camera(x))
+            camera_setup_button.hide()
+            c.layout().addWidget(camera_setup_button,0,Qt.AlignLeft)
             self.printer_grid.addWidget(c,i//2,i%2)
             self.cards[p["id"]]=(state[1],layer[1],progress[1],filename,bar)
             self.camera_views[p["id"]]={"host":camera_host,"layout":camera_layout,
-                                        "button":camera_button,"view":camera_view,"printer":p}
+                                        "button":camera_button,
+                                        "setup_button":camera_setup_button,
+                                        "message":camera_message,
+                                        "view":None,"printer":p}
+            self.run(
+                printer_camera_info, (p["host"], p["port"]),
+                lambda data,x=p:self.camera_detected(x["id"],data),
+                lambda error,x=p:self.camera_failed(x["id"],error))
 
     def metric_widget(self, title, value):
         frame=QFrame(); frame.setObjectName("metric"); layout=QVBoxLayout(frame)
@@ -972,12 +1041,56 @@ class MainWindow(QMainWindow):
     def toggle_camera(self, printer_id):
         if printer_id not in self.camera_views: return
         item=self.camera_views[printer_id]; visible=not item["host"].isVisible()
-        if visible and item["view"] is None:
-            printer=item["printer"]
-            view=CameraView(printer["host"], printer["port"])
-            item["layout"].addWidget(view); item["view"]=view
         item["host"].setVisible(visible)
         item["button"].setText(self.T("camera_hide") if visible else self.T("camera_show"))
+
+    def camera_detected(self, printer_id, data):
+        item = self.camera_views.get(printer_id)
+        if not item:
+            return
+        item["message"].setText(
+            self.T("camera_ready").format(name=data.get("name") or "Camera")
+            if data.get("configured") else self.T("camera_not_configured"))
+        item["setup_button"].setVisible(not data.get("configured"))
+        if not data.get("configured") or item["view"] is not None:
+            return
+        view = CameraView(data["stream_url"])
+        item["layout"].insertWidget(0, view)
+        item["view"] = view
+
+    def camera_failed(self, printer_id, error):
+        item = self.camera_views.get(printer_id)
+        if not item:
+            return
+        item["message"].setText(self.T("camera_not_configured"))
+        item["setup_button"].show()
+
+    def configure_camera(self, printer):
+        item = self.camera_views.get(printer["id"])
+        if not item:
+            return
+        item["setup_button"].setEnabled(False)
+        item["message"].setText(self.T("camera_configuring"))
+        self.run(
+            configure_printer_camera, (printer["host"], printer["port"]),
+            lambda data,x=printer:self.camera_configured(x["id"],data),
+            lambda error,x=printer:self.camera_configuration_failed(x["id"],error))
+
+    def camera_configured(self, printer_id, data):
+        item = self.camera_views.get(printer_id)
+        if not item:
+            return
+        item["setup_button"].setEnabled(True)
+        self.camera_detected(printer_id, data)
+
+    def camera_configuration_failed(self, printer_id, error):
+        item = self.camera_views.get(printer_id)
+        if not item:
+            return
+        item["setup_button"].setEnabled(True)
+        item["setup_button"].show()
+        item["message"].setText(
+            self.T("camera_config_failed").format(error=error))
 
     def refresh_all(self):
         for p in self.printers:
@@ -1143,12 +1256,52 @@ class MainWindow(QMainWindow):
         self.password_visibility.setToolTip(
             self.T("hide_password") if checked else self.T("show_password"))
 
+    def static_ip_toggled(self, checked):
+        self.static_ip.setEnabled(checked)
+        self.find_static_ip_button.setEnabled(checked)
+        self.update_setup_steps()
+
+    def find_free_ip(self):
+        self.find_static_ip_button.setEnabled(False)
+        self.find_static_ip_button.setText(self.T("scanning_ip"))
+
+        def task():
+            return find_available_ipv4_addresses()
+
+        def done(result):
+            configuration, addresses = result
+            self._static_network_configuration = configuration
+            current = self.static_ip.currentText().strip()
+            self.static_ip.clear()
+            self.static_ip.addItems(addresses)
+            if current:
+                self.static_ip.setCurrentText(current)
+            elif addresses:
+                self.static_ip.setCurrentIndex(0)
+            self.find_static_ip_button.setText(self.T("find_free_ip"))
+            self.find_static_ip_button.setEnabled(True)
+            QMessageBox.information(
+                self, "LayerShot",
+                self.T("free_ip_found").format(
+                    address=addresses[0] if addresses else "—")
+                if addresses else self.T("no_free_ip"))
+
+        def failed(error):
+            self.find_static_ip_button.setText(self.T("find_free_ip"))
+            self.find_static_ip_button.setEnabled(True)
+            QMessageBox.warning(self, "LayerShot", error)
+
+        self.run(task, done=done, failed=failed)
+
     def flash_firmware(self):
         if getattr(self, "_flash_in_progress", False):
             return
         port=self.port_combo.currentText()
         ssid=self.ssid.currentText().strip()
         wifi_password=self.password.text()
+        preferred_ip = (
+            self.static_ip.currentText().strip()
+            if self.use_static_ip.isChecked() else "")
         camera_target = self.camera_target.currentData() or "iphone"
         shutter_delay_ms = self.shutter_delay.currentData()
         selected_printer = self.active_printer()
@@ -1163,7 +1316,16 @@ class MainWindow(QMainWindow):
         fw=asset_path(firmware_name)
         selected_firmware = self.firmware_release.currentData()
         if not self.show_legacy_firmware.isChecked():
-            selected_firmware = self.catalog_firmware(camera_target) or None
+            catalog_firmware = self.catalog_firmware(camera_target) or None
+            bundled_version = FIRMWARE_VERSIONS.get(camera_target, "0")
+            version_numbers = lambda value: tuple(
+                int(number) for number in re.findall(r"\d+", str(value))[:3])
+            selected_firmware = (
+                catalog_firmware
+                if catalog_firmware and version_numbers(
+                    catalog_firmware.get("version", "0")) >=
+                version_numbers(bundled_version)
+                else None)
         release_firmware_name = {
             "dji": "Hackman3D-LayerShot-ESP32-C3-DJI.bin",
             "gopro": "Hackman3D-LayerShot-ESP32-C3-GoPro.bin",
@@ -1182,6 +1344,25 @@ class MainWindow(QMainWindow):
             missing.append(self.T("wifi_5ghz_unsupported"))
         if not wifi_password:
             missing.append(self.T("missing_wifi_password"))
+        static_network = getattr(
+            self, "_static_network_configuration", None)
+        if self.use_static_ip.isChecked():
+            if static_network is None:
+                try:
+                    from .services import local_network_configuration
+                    static_network = local_network_configuration()
+                except Exception:
+                    missing.append(self.T("static_network_unknown"))
+            try:
+                import ipaddress
+                address = ipaddress.ip_address(preferred_ip)
+                if not address.is_private or address.version != 4:
+                    raise ValueError
+                if (static_network and address not in
+                        ipaddress.ip_network(static_network["network"])):
+                    raise ValueError
+            except ValueError:
+                missing.append(self.T("invalid_static_ip"))
         if not port:
             missing.append(self.T("missing_esp_port"))
         if not fw.exists():
@@ -1199,6 +1380,9 @@ class MainWindow(QMainWindow):
         def task():
             # Do not touch the ESP until the selected printer has answered.
             printer_status(printer["host"], printer["port"])
+            if preferred_ip and not ipv4_address_is_available(preferred_ip):
+                raise RuntimeError(
+                    self.T("static_ip_in_use").format(address=preferred_ip))
             if selected_firmware and selected_firmware.get("url"):
                 selected_fw = download_firmware_url(
                     selected_firmware["url"],
@@ -1284,6 +1468,10 @@ class MainWindow(QMainWindow):
                 "1", "0", "0", str(shutter_delay_ms),
                 camera_target,
                 esp_hostname,
+                preferred_ip,
+                static_network["gateway"] if preferred_ip else "",
+                static_network["netmask"] if preferred_ip else "",
+                static_network["dns"] if preferred_ip else "",
             ])+"\n"
             # Windows can take several seconds to release esptool's handle and
             # enumerate the ESP32-C3 USB CDC port again after the hard reset.

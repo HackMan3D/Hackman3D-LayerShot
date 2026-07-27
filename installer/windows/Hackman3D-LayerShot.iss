@@ -1,5 +1,5 @@
 #define MyAppName "Hackman3D LayerShot"
-#define MyAppVersion "1.2.5"
+#define MyAppVersion "1.2.7"
 #define MyAppPublisher "Hackman3D"
 #define MyAppURL "https://github.com/HackMan3D/Hackman3D-LayerShot"
 #define MyAppExeName "Hackman3D LayerShot.exe"
@@ -21,7 +21,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x86compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\..\releases
-OutputBaseFilename=Hackman3D-LayerShot-Windows-Setup-1.2.5
+OutputBaseFilename=Hackman3D-LayerShot-Windows-Setup-1.2.7
 SetupIconFile=..\..\src\hackman_layershot\assets\Hackman3DLayerShot.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/max
@@ -29,7 +29,7 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=1.2.5.0
+VersionInfoVersion=1.2.7.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName} installer
 VersionInfoProductName={#MyAppName}
@@ -43,8 +43,8 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\..\dist\Hackman3D LayerShot x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: IsWin64
-Source: "..\..\dist\Hackman3D LayerShot x86\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not IsWin64
+Source: "..\..\dist-windows\Hackman3D LayerShot x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: IsWin64
+Source: "..\..\dist-windows\Hackman3D LayerShot x86\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not IsWin64
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

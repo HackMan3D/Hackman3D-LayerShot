@@ -147,6 +147,100 @@ def normalize_host(host):
         raise ValueError("The network address is invalid.")
     return parsed.hostname, parsed.port
 
+def _absolute_camera_url(host, port, value):
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    if value.startswith(("http://", "https://")):
+        return value
+    return f"http://{host}:{port}/" + value.lstrip("/")
+
+def printer_camera_info(host, port):
+    """Return the enabled Moonraker webcam without mistaking Fluidd for video."""
+    hostname, address_port = normalize_host(host)
+    moonraker_port = address_port or port
+    base = f"http://{hostname}:{moonraker_port}"
+    response = request_json(base + "/server/webcams/list", timeout=3)
+    webcams = response.get("result", {}).get("webcams", [])
+    for webcam in webcams:
+        if not webcam.get("enabled", True):
+            continue
+        stream_url = _absolute_camera_url(
+            hostname, moonraker_port, webcam.get("stream_url"))
+        if not stream_url:
+            continue
+        return {
+            "configured": True,
+            "name": webcam.get("name") or "Camera",
+            "service": webcam.get("service") or "",
+            "stream_url": stream_url,
+            "snapshot_url": _absolute_camera_url(
+                hostname, moonraker_port, webcam.get("snapshot_url")),
+            "source": webcam.get("source") or "",
+        }
+    return {
+        "configured": False,
+        "name": "",
+        "service": "",
+        "stream_url": "",
+        "snapshot_url": "",
+        "source": "",
+    }
+
+def _creality_webrtc_available(host):
+    """Detect Creality's local WebRTC server used by K2/SparkX cameras."""
+    url = f"http://{host}:8000/"
+    if platform.system() == "Darwin":
+        command = [
+            "/usr/bin/curl", "--silent", "--show-error", "--fail",
+            "--connect-timeout", "2", "--max-time", "3", url,
+        ]
+        result = subprocess.run(
+            command, capture_output=True, text=True, timeout=4)
+        html = result.stdout if result.returncode == 0 else ""
+    else:
+        try:
+            with urllib.request.urlopen(url, timeout=3) as response:
+                html = response.read(65536).decode("utf-8", errors="replace")
+        except Exception:
+            html = ""
+    return (
+        "RTCPeerConnection" in html
+        and "/call/webrtc_local" in html)
+
+def configure_printer_camera(host, port):
+    """Register Creality's existing WebRTC stream in Moonraker.
+
+    This only writes a database webcam entry. It does not modify printer
+    configuration files, install services, or restart Klipper.
+    """
+    hostname, address_port = normalize_host(host)
+    moonraker_port = address_port or port
+    current = printer_camera_info(hostname, moonraker_port)
+    if current["configured"]:
+        return current
+    if not _creality_webrtc_available(hostname):
+        raise RuntimeError(
+            "No active Creality camera stream was found on this printer.")
+    payload = {
+        "name": "LayerShot Camera",
+        "location": "printer",
+        "service": "iframe",
+        "enabled": True,
+        "stream_url": f"http://{hostname}:8000/",
+        "snapshot_url": "",
+        "target_fps": 15,
+        "target_fps_idle": 5,
+        "aspect_ratio": "16:9",
+    }
+    result = request_json(
+        f"http://{hostname}:{moonraker_port}/server/webcams/item",
+        method="POST", payload=payload, timeout=5)
+    webcam = result.get("result", {}).get("webcam")
+    if not isinstance(webcam, dict):
+        raise RuntimeError("Moonraker did not confirm the camera configuration.")
+    return printer_camera_info(hostname, moonraker_port)
+
 def printer_status(host, port):
     hostname, address_port = normalize_host(host)
     candidates = []
@@ -236,6 +330,115 @@ def _local_ipv4_networks():
         except ValueError:
             pass
     return list(dict.fromkeys(networks))
+
+def local_network_configuration():
+    """Return the active LAN address, gateway and netmask.
+
+    LayerShot currently scans /24 home networks, which covers the Creality
+    printers and consumer routers it supports.  The gateway is read from the
+    host OS so a preferred ESP address also works on routers using .254.
+    """
+    networks = _local_ipv4_networks()
+    if not networks:
+        raise RuntimeError("No active private IPv4 network was detected.")
+    network = networks[0]
+    local_ip = None
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(("1.1.1.1", 80))
+            candidate = ipaddress.ip_address(probe.getsockname()[0])
+            if candidate in network:
+                local_ip = str(candidate)
+    except OSError:
+        pass
+    gateway = None
+    try:
+        if platform.system() == "Darwin":
+            output = subprocess.check_output(
+                ["/sbin/route", "-n", "get", "default"],
+                text=True, stderr=subprocess.DEVNULL, timeout=2)
+            match = re.search(r"gateway:\s*([0-9]+(?:\.[0-9]+){3})", output)
+        elif platform.system() == "Windows":
+            output = subprocess.check_output(
+                ["route", "print", "-4", "0.0.0.0"],
+                text=True, errors="ignore", stderr=subprocess.DEVNULL,
+                timeout=4, **hidden_subprocess_kwargs())
+            match = re.search(
+                r"^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+"
+                r"([0-9]+(?:\.[0-9]+){3})\s+"
+                r"([0-9]+(?:\.[0-9]+){3})",
+                output, flags=re.MULTILINE)
+            if match and not local_ip:
+                local_ip = match.group(2)
+        else:
+            output = subprocess.check_output(
+                ["ip", "route", "show", "default"], text=True,
+                stderr=subprocess.DEVNULL, timeout=2)
+            match = re.search(r"\bvia\s+([0-9]+(?:\.[0-9]+){3})", output)
+        if match:
+            gateway = match.group(1)
+    except Exception:
+        pass
+    if not gateway:
+        raise RuntimeError("The local network gateway could not be detected.")
+    return {
+        "local_ip": local_ip or "",
+        "network": str(network),
+        "gateway": gateway,
+        "netmask": str(network.netmask),
+        "dns": gateway,
+    }
+
+def ipv4_address_is_available(address):
+    """Return True when an address does not answer the local conflict probes."""
+    ping = (["ping", "-n", "1", "-w", "250", address]
+            if platform.system() == "Windows"
+            else ["ping", "-c", "1", "-W", "250", address])
+    try:
+        if subprocess.run(
+                ping, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=1, **hidden_subprocess_kwargs()).returncode == 0:
+            return False
+    except Exception:
+        pass
+    for port in (80, 443, 4408, 7125):
+        try:
+            with socket.create_connection((address, port), timeout=.12):
+                return False
+        except OSError:
+            pass
+    return True
+
+def find_available_ipv4_addresses(limit=12):
+    """Find LAN addresses that are unused at scan time.
+
+    This is deliberately a conservative availability test (ICMP plus common
+    LayerShot/printer ports). A router-side DHCP reservation remains the only
+    way to guarantee that another client will never receive the address later.
+    """
+    configuration = local_network_configuration()
+    network = ipaddress.ip_network(configuration["network"])
+    excluded = {
+        configuration["local_ip"], configuration["gateway"],
+        str(network.network_address), str(network.broadcast_address),
+    }
+    preferred = list(range(200, 250)) + list(range(20, 200))
+    candidates = [
+        str(network.network_address + suffix)
+        for suffix in preferred
+        if suffix < network.num_addresses - 1
+        and str(network.network_address + suffix) not in excluded
+    ]
+
+    available = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+        for address, is_available in zip(
+                candidates, executor.map(ipv4_address_is_available, candidates)):
+            if is_available:
+                available.append(address)
+                if len(available) >= limit:
+                    break
+    return configuration, available
 
 def _open_moonraker_port(host):
     for port in (4408, 7125, 80):
