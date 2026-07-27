@@ -46,7 +46,7 @@ void layershot_led_test(void) {
 }
 
 static void main_task(void *unused) {
-    int pressed_ticks = 0, reconnect_ticks = 0, poll_ticks = 0;
+    int pressed_ticks = 0, reconnect_ticks = 0, wifi_ticks = 0, poll_ticks = 0;
     int pairing_blink_ticks = 0;
     while (true) {
         bool pressed = gpio_get_level(BOOT_BUTTON) == 0;
@@ -85,6 +85,10 @@ static void main_task(void *unused) {
             reconnect_ticks = 0;
             if (layershot_camera_was_paired() && !layershot_camera_is_connected())
                 layershot_camera_request_pair(false);
+        }
+        if (++wifi_ticks >= 100) {
+            wifi_ticks = 0;
+            layershot_wifi_maintain();
         }
         if (++poll_ticks >= 20) { poll_ticks = 0; layershot_poll_printer(); }
         layershot_process_shutter_timer();

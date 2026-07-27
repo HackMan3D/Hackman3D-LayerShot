@@ -8,6 +8,10 @@ typedef struct {
     char password[65];
     char printer[64];
     char hostname[64];
+    char static_ip[16];
+    char gateway[16];
+    char netmask[16];
+    char dns[16];
     uint16_t printer_port;
     uint16_t every_layers;
     uint16_t skip_layers;
@@ -19,6 +23,7 @@ typedef struct {
 void layershot_network_init(void);
 const layershot_config_t *layershot_config(void);
 bool layershot_wifi_connected(void);
+void layershot_wifi_maintain(void);
 const char *layershot_ip_address(void);
 void layershot_poll_printer(void);
 void layershot_process_shutter_timer(void);

@@ -20,16 +20,16 @@ or PC application can be closed during the entire print.
 
 ![LayerShot printer dashboard](docs/images/printer-dashboard.png)
 
-## Download — version 1.2.5
+## Download — version 1.2.7
 
 No compilation or Arduino IDE setup is required:
 
-- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-macOS-1.2.5.zip)
-- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-Windows-Setup-1.2.5.exe)
-- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
-- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
-- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
-- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.5/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
+- [Download for macOS — Apple Silicon](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-macOS-1.2.7.zip)
+- [Download the Windows installer — 32-bit and 64-bit](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-Windows-Setup-1.2.7.exe)
+- [Phone firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-ESP32-C3-Phone.bin)
+- [DJI firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-ESP32-C3-DJI.bin)
+- [GoPro firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-ESP32-C3-GoPro.bin)
+- [Experimental Insta360 firmware for ESP32-C3](https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin)
 
 > **Security notice:** these downloads are not yet signed with Apple and
 > Microsoft developer certificates. macOS Gatekeeper or Windows SmartScreen may
@@ -58,23 +58,16 @@ and LayerShot is ready to photograph every layer.
 
 ![Guided printer installation](docs/images/guided-installation.png)
 
-## What is new in 1.2.5
+## What is new in 1.2.7
 
+- reads each printer's webcam configuration directly from Moonraker;
+- activates the built-in Creality K2 or SparkX camera in Klipper with one
+  button when the stream exists but is not registered;
+- never displays the Fluidd dashboard as if it were a camera;
+- automatically reconnects every ESP firmware to Wi-Fi after an interruption;
+- offers an optional fixed ESP address with an availability check;
 - correctly reconstructs tiled iPhone HEIC and HEIF photos before rendering;
-- prevents FFmpeg from treating a single 512×512 HEIC tile as the complete
-  photograph;
-- uses the same full-resolution conversion for the preview and final video;
-- keeps every original photo untouched by using temporary converted frames;
-- multiple LayerShot ESP32 devices can be discovered and managed independently;
-- every ESP receives a readable hostname derived from its printer name;
-- the selected printer is now always written to the ESP during installation;
-- installation sections unlock in order, making incomplete steps unambiguous;
-- calibration is shown as **Preparing / calibration** instead of standby;
-- the stored shutter delay is visible in the ESP32 status panel;
-- the ESP dashboard opens immediately, without waiting for a full network scan;
-- update checks compare the installed application with the latest GitHub release;
-- the timelapse tool includes more formats, social-media crops and a live first-frame preview;
-- macOS and Windows use the same interface, features and visible version number.
+- macOS and Windows use the same interface, features and visible version.
 
 ## Camera compatibility
 

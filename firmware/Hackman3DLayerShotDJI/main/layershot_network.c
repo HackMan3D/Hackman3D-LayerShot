@@ -63,6 +63,10 @@ static void load_config(void) {
     if (nvs_get_str(n, "hostname", config.hostname, &z) != ESP_OK) {
         strlcpy(config.hostname, "hackman-layershot", sizeof(config.hostname));
     }
+    z = sizeof(config.static_ip); nvs_get_str(n, "static_ip", config.static_ip, &z);
+    z = sizeof(config.gateway); nvs_get_str(n, "gateway", config.gateway, &z);
+    z = sizeof(config.netmask); nvs_get_str(n, "netmask", config.netmask, &z);
+    z = sizeof(config.dns); nvs_get_str(n, "dns", config.dns, &z);
     nvs_get_u16(n, "port", &config.printer_port);
     nvs_get_u16(n, "every", &config.every_layers);
     nvs_get_u16(n, "skip", &config.skip_layers);
@@ -78,6 +82,10 @@ static void save_config(void) {
     nvs_set_str(n, "ssid", config.ssid); nvs_set_str(n, "password", config.password);
     nvs_set_str(n, "printer", config.printer); nvs_set_u16(n, "port", config.printer_port);
     nvs_set_str(n, "hostname", config.hostname);
+    nvs_set_str(n, "static_ip", config.static_ip);
+    nvs_set_str(n, "gateway", config.gateway);
+    nvs_set_str(n, "netmask", config.netmask);
+    nvs_set_str(n, "dns", config.dns);
     nvs_set_u16(n, "every", config.every_layers); nvs_set_u16(n, "skip", config.skip_layers);
     nvs_set_u16(n, "stop", config.stop_before_end); nvs_set_u16(n, "delay", config.delay_ms);
     nvs_set_u8(n, "autonomous", config.autonomous); nvs_commit(n); nvs_close(n);
@@ -104,7 +112,7 @@ static esp_err_t root_handler(httpd_req_t *r) {
 static esp_err_t status_handler(httpd_req_t *r) {
     char json[640];
     snprintf(json, sizeof(json),
-        "{\"name\":\"Hackman3D LayerShot\",\"firmware\":\"2.1.0-DJI\",\"hostname\":\"%s.local\",\"camera_type\":\"dji\","
+        "{\"name\":\"Hackman3D LayerShot\",\"firmware\":\"2.1.1-DJI\",\"hostname\":\"%s.local\",\"camera_type\":\"dji\","
         "\"camera_name\":\"%s\",\"bluetooth\":%s,\"bluetooth_state\":\"%s\","
         "\"pairing\":%s,\"wifi\":%s,\"wifi_state\":\"%s\",\"ip\":\"%s\","
         "\"printer\":\"%s:%u\",\"printer_state\":\"%s\",\"current_layer\":%d,\"total_layers\":%d,"
@@ -149,7 +157,27 @@ static void start_server(void) {
 
 void layershot_network_init(void) {
     load_config();
-    esp_netif_init(); esp_event_loop_create_default(); esp_netif_create_default_wifi_sta();
+    esp_netif_init(); esp_event_loop_create_default();
+    esp_netif_t *station = esp_netif_create_default_wifi_sta();
+    if (config.static_ip[0]) {
+        unsigned ip[4], gateway[4], mask[4], dns[4];
+        if (sscanf(config.static_ip, "%u.%u.%u.%u", &ip[0], &ip[1], &ip[2], &ip[3]) == 4 &&
+            sscanf(config.gateway, "%u.%u.%u.%u", &gateway[0], &gateway[1], &gateway[2], &gateway[3]) == 4 &&
+            sscanf(config.netmask, "%u.%u.%u.%u", &mask[0], &mask[1], &mask[2], &mask[3]) == 4 &&
+            sscanf(config.dns, "%u.%u.%u.%u", &dns[0], &dns[1], &dns[2], &dns[3]) == 4) {
+            esp_netif_ip_info_t info = {0};
+            IP4_ADDR(&info.ip, ip[0], ip[1], ip[2], ip[3]);
+            IP4_ADDR(&info.gw, gateway[0], gateway[1], gateway[2], gateway[3]);
+            IP4_ADDR(&info.netmask, mask[0], mask[1], mask[2], mask[3]);
+            esp_netif_dhcpc_stop(station);
+            esp_netif_set_ip_info(station, &info);
+            esp_netif_dns_info_t dns_info = {0};
+            dns_info.ip.type = ESP_IPADDR_TYPE_V4;
+            IP4_ADDR(&dns_info.ip.u_addr.ip4, dns[0], dns[1], dns[2], dns[3]);
+            esp_netif_set_dns_info(
+                station, ESP_NETIF_DNS_MAIN, &dns_info);
+        }
+    }
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT(); esp_wifi_init(&init);
     esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL);
     esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, event_handler, NULL);
@@ -157,7 +185,9 @@ void layershot_network_init(void) {
     strlcpy((char *)w.sta.ssid, config.ssid, sizeof(w.sta.ssid));
     strlcpy((char *)w.sta.password, config.password, sizeof(w.sta.password));
     w.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-    esp_wifi_set_mode(WIFI_MODE_STA); esp_wifi_set_config(WIFI_IF_STA, &w); esp_wifi_start();
+    esp_wifi_set_mode(WIFI_MODE_STA); esp_wifi_set_config(WIFI_IF_STA, &w);
+    esp_wifi_set_ps(WIFI_PS_NONE);
+    esp_wifi_start();
     mdns_init(); mdns_hostname_set(config.hostname); mdns_instance_name_set("Hackman3D LayerShot");
     mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
     start_server();
@@ -165,6 +195,9 @@ void layershot_network_init(void) {
 
 const layershot_config_t *layershot_config(void) { return &config; }
 bool layershot_wifi_connected(void) { return wifi_ready; }
+void layershot_wifi_maintain(void) {
+    if (!wifi_ready && config.ssid[0]) esp_wifi_connect();
+}
 const char *layershot_ip_address(void) { return ip_address; }
 
 static bool decode_hex(const char *hex, char *output, size_t output_size) {
@@ -180,13 +213,13 @@ static bool decode_hex(const char *hex, char *output, size_t output_size) {
 }
 
 bool layershot_apply_serial_config(const char *line) {
-    char copy[512]; strlcpy(copy, line, sizeof(copy));
-    char *fields[11] = {0}; int count = 1;
+    char copy[640]; strlcpy(copy, line, sizeof(copy));
+    char *fields[15] = {0}; int count = 1;
     fields[0] = copy;
     // strtok_r() collapses adjacent tabs, shifting every following field when
     // one value is empty. Split tabs explicitly so USB provisioning always
     // keeps the ten-field desktop protocol aligned.
-    for (char *cursor = copy; *cursor && count < 11; cursor++) {
+    for (char *cursor = copy; *cursor && count < 15; cursor++) {
         if (*cursor == '\t') {
             *cursor = 0;
             fields[count++] = cursor + 1;
@@ -195,13 +228,14 @@ bool layershot_apply_serial_config(const char *line) {
     // USB provisioning deliberately sends a blank line first to clear any
     // partial input left by the bootloader. Never dereference fields that were
     // not present: doing so reset the ESP32 before the real configuration
-    // command could arrive.
-    if (count != 11 || !fields[10]) {
+    // command could arrive. Accept the previous 11-field protocol too.
+    if ((count != 11 && count != 15) || !fields[10]) {
         printf("LAYERSHOT_CONFIG_DIAG:FIELDS_%d\n", count);
         return false;
     }
     fields[9][strcspn(fields[9], "\r\n")] = 0;
     fields[10][strcspn(fields[10], "\r\n")] = 0;
+    if (count >= 15) fields[14][strcspn(fields[14], "\r\n")] = 0;
     if (strcmp(fields[0], "LAYERSHOT_CONFIG")) {
         puts("LAYERSHOT_CONFIG_DIAG:HEADER");
         return false;
@@ -223,6 +257,15 @@ bool layershot_apply_serial_config(const char *line) {
     config.skip_layers = atoi(fields[6]); config.stop_before_end = atoi(fields[7]);
     config.delay_ms = atoi(fields[8]); config.autonomous = true;
     strlcpy(config.hostname, fields[10], sizeof(config.hostname));
+    if (count >= 15) {
+        strlcpy(config.static_ip, fields[11], sizeof(config.static_ip));
+        strlcpy(config.gateway, fields[12], sizeof(config.gateway));
+        strlcpy(config.netmask, fields[13], sizeof(config.netmask));
+        strlcpy(config.dns, fields[14], sizeof(config.dns));
+    } else {
+        config.static_ip[0] = config.gateway[0] = config.netmask[0] =
+            config.dns[0] = 0;
+    }
     if (!config.ssid[0]) {
         puts("LAYERSHOT_CONFIG_DIAG:EMPTY_SSID");
         return false;

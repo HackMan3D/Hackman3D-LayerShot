@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.7 — 2026-07-27
+
+- Reads each printer's webcam configuration directly from Moonraker.
+- Prevents the Fluidd interface from being mistaken for a camera stream.
+- Adds an **Activate camera in Klipper** button when no webcam is registered.
+- Detects the built-in Creality WebRTC service used by K2 and SparkX printers
+  and registers it through Moonraker's official webcam API.
+- Keeps printer configuration files untouched and reports when no active
+  camera service is available.
+
+## 1.2.6 — 2026-07-27
+
+- Added automatic Wi-Fi recovery to every ESP32-C3 firmware profile.
+- Added an optional fixed ESP address with automatic gateway, netmask and DNS
+  detection on macOS and Windows.
+- Added a local availability scan and a final conflict check immediately
+  before flashing the ESP32.
+- The setup access point remains available while LayerShot retries the saved
+  2.4 GHz network every ten seconds.
+
 ## 1.2.5 — 2026-07-27
 
 - Correctly reconstructs tiled iPhone HEIC/HEIF photos before rendering.
