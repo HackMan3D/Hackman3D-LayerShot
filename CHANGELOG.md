@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.8 — 2026-07-27
+
+- Keeps **Activate / repair camera in Klipper** available on every printer card.
+- Repairs or recreates LayerShot's Moonraker webcam entry on demand.
+- Detects the WebRTC endpoint retained by a K2 after a factory reset, even when
+  Creality's built-in viewer page is empty.
+- Uses the native Creality viewer when available and a LayerShot WebRTC fallback
+  only for reset printers that need it.
+- Prioritizes the repaired LayerShot camera without deleting custom webcams.
+
 ## 1.2.7 — 2026-07-27
 
 - Reads each printer's webcam configuration directly from Moonraker.

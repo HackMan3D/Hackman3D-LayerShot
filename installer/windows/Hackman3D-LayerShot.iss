@@ -1,5 +1,5 @@
 #define MyAppName "Hackman3D LayerShot"
-#define MyAppVersion "1.2.7"
+#define MyAppVersion "1.2.8"
 #define MyAppPublisher "Hackman3D"
 #define MyAppURL "https://github.com/HackMan3D/Hackman3D-LayerShot"
 #define MyAppExeName "Hackman3D LayerShot.exe"
@@ -21,7 +21,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x86compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\..\releases
-OutputBaseFilename=Hackman3D-LayerShot-Windows-Setup-1.2.7
+OutputBaseFilename=Hackman3D-LayerShot-Windows-Setup-1.2.8
 SetupIconFile=..\..\src\hackman_layershot\assets\Hackman3DLayerShot.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/max
@@ -29,7 +29,7 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=1.2.7.0
+VersionInfoVersion=1.2.8.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName} installer
 VersionInfoProductName={#MyAppName}

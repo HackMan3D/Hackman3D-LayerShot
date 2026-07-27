@@ -4,7 +4,7 @@
     "iphone": {
       "latest": {
         "version": "2.2.2",
-        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-ESP32-C3-Phone.bin"
+        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.8/Hackman3D-LayerShot-ESP32-C3-Phone.bin"
       },
       "history": [
         {
@@ -25,7 +25,7 @@
     "dji": {
       "latest": {
         "version": "2.1.1-DJI",
-        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-ESP32-C3-DJI.bin"
+        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.8/Hackman3D-LayerShot-ESP32-C3-DJI.bin"
       },
       "history": [
         {
@@ -41,7 +41,7 @@
     "gopro": {
       "latest": {
         "version": "2.2.1-gopro",
-        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-ESP32-C3-GoPro.bin"
+        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.8/Hackman3D-LayerShot-ESP32-C3-GoPro.bin"
       },
       "history": [
         {
@@ -57,7 +57,7 @@
     "insta360": {
       "latest": {
         "version": "2.2.1-insta360-exp",
-        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.7/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin"
+        "url": "https://github.com/HackMan3D/Hackman3D-LayerShot/releases/download/v1.2.8/Hackman3D-LayerShot-ESP32-C3-Insta360-Experimental.bin"
       },
       "history": [
         {
