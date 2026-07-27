@@ -1423,6 +1423,9 @@ class MainWindow(QMainWindow):
         self.flash_progress.setRange(0,0)
         self.flash_status.setText(self.T("flash") + "…")
         printer=selected_printer
+        previous_esp_host = (
+            self.esp_host.text().strip().removeprefix("http://").rstrip("/")
+        )
         def task():
             # Do not touch the ESP until the selected printer has answered.
             printer_status(printer["host"], printer["port"])
@@ -1433,6 +1436,21 @@ class MainWindow(QMainWindow):
                 selected_fw = download_firmware_url(
                     selected_firmware["url"],
                     f"{camera_target}-{selected_firmware.get('version', 'latest')}")
+                # Never trust catalog metadata alone. The v1.2.8 Phone asset
+                # was once published as 2.2.2 while its embedded firmware was
+                # actually 2.2.0 (which triggers the shutter immediately).
+                # Phone-family Arduino images keep their version as plain text,
+                # so reject a mismatched download and use the verified bundled
+                # image instead.
+                if camera_target in (
+                        "iphone", "android", "hid_volume_up",
+                        "hid_volume_down", "hid_enter", "hid_space"):
+                    expected_version = str(
+                        selected_firmware.get("version", "")).split()[0]
+                    if (expected_version and
+                            expected_version.encode() not in
+                            selected_fw.read_bytes()):
+                        selected_fw = fw
             elif selected_firmware and selected_firmware.get("release"):
                 selected_fw = download_release_asset(
                     selected_firmware["release"], release_firmware_name)
@@ -1465,44 +1483,40 @@ class MainWindow(QMainWindow):
                            "Hold BOOT, click Install and configure, then "
                            "release BOOT when the flash begins."))
             elif platform.system() == "Darwin":
-                # Run esptool inside the existing LayerShot process. Launching
-                # any bundled helper executable on macOS can make LaunchServices
-                # create a second, empty application window.
                 mac_esptool_arguments = list(esptool_arguments)
                 mac_esptool_arguments.insert(
                     mac_esptool_arguments.index("write-flash"), "--no-stub")
-                import esptool
-                last_error = ""
+                mac_esptool = asset_path("esptool-macos")
+                result = None
                 for attempt in range(8):
                     try:
-                        esptool.main(mac_esptool_arguments)
-                        break
-                    except SystemExit as exc:
-                        # Click/esptool reports a successful command with
-                        # SystemExit(0). Continue with USB provisioning instead
-                        # of silently terminating the QRunnable.
-                        if exc.code in (None, 0):
-                            break
+                        result = subprocess.run(
+                            [str(mac_esptool), *mac_esptool_arguments],
+                            check=False, capture_output=True, text=True,
+                            timeout=120)
+                    except subprocess.TimeoutExpired as exc:
                         raise RuntimeError(
-                            f"ESP32 flashing stopped with exit code {exc.code}.") from exc
-                    except Exception as exc:
-                        last_error = str(exc)
-                        port_busy = any(marker in last_error.lower() for marker in (
-                            "resource temporarily unavailable",
-                            "could not exclusively lock port",
-                            "port is busy",
-                        ))
-                        if not port_busy:
-                            raise
-                        # A previous attempt or the USB refresh can hold the
-                        # device briefly. Let macOS release it and retry.
-                        time.sleep(1.25)
-                else:
+                            "ESP32 flashing timed out after two minutes. Unplug "
+                            "and reconnect the board, hold BOOT while starting "
+                            "the installation, then release it when flashing "
+                            "begins.") from exc
+                    detail = (result.stderr or result.stdout or "").strip()
+                    port_busy = any(marker in detail.lower() for marker in (
+                        "resource temporarily unavailable",
+                        "could not exclusively lock port",
+                        "port is busy",
+                    ))
+                    if result.returncode == 0 or not port_busy:
+                        break
+                    time.sleep(1.25)
+                if result.returncode:
+                    detail = (result.stderr or result.stdout or "").strip()
                     raise RuntimeError(
-                        "The ESP32 USB port is still busy. Close Arduino IDE, "
-                        "Serial Monitor and any other LayerShot window, unplug "
-                        "and reconnect the ESP32, then try again.\n\n" +
-                        last_error)
+                        "ESP32 flashing failed on "
+                        f"{port} (exit code {result.returncode}).\n\n"
+                        + (detail or
+                           "Close Arduino IDE and Serial Monitor, reconnect "
+                           "the ESP32, then try again while holding BOOT."))
             else:
                 import esptool
                 esptool.main(esptool_arguments)
@@ -1519,10 +1533,64 @@ class MainWindow(QMainWindow):
                 static_network["netmask"] if preferred_ip else "",
                 static_network["dns"] if preferred_ip else "",
             ])+"\n"
+            # A firmware update preserves the ESP32 preferences. Once the
+            # flashed application rejoins its existing Wi-Fi, configure it
+            # through its local HTTP API instead of resetting the native USB
+            # CDC port a second time. This avoids the macOS USB/JTAG write
+            # timeout while retaining serial provisioning for a brand-new ESP.
+            if platform.system() == "Darwin":
+                network_candidates = [
+                    esp_hostname + ".local",
+                    previous_esp_host,
+                ]
+                network_deadline = time.monotonic() + 18
+                while time.monotonic() < network_deadline:
+                    for candidate in dict.fromkeys(
+                            item for item in network_candidates if item):
+                        try:
+                            status = esp_status(candidate)
+                            status_printer = str(status.get("printer", ""))
+                            status_hostname = str(
+                                status.get("hostname", "")).rstrip(".").lower()
+                            expected_hostname = esp_hostname.lower()
+                            known_candidate = candidate == previous_esp_host
+                            same_device = (
+                                status_hostname == expected_hostname
+                                or status_printer == printer["host"]
+                                or known_candidate
+                            )
+                            if not same_device:
+                                continue
+                            esp_post(candidate, "printer-config", {
+                                "host": printer["host"],
+                                "port": printer["port"],
+                                "every": 1,
+                                "skip": 0,
+                                "stop": 0,
+                                "delay": shutter_delay_ms,
+                            })
+                            # The camera family is already selected by the
+                            # flashed binary. Phone HID variants can also be
+                            # selected dynamically by this endpoint.
+                            if camera_target in ("iphone", "android"):
+                                esp_post(candidate, "camera-config", {
+                                    "camera": camera_target,
+                                })
+                            # Re-save the requested Wi-Fi credentials last:
+                            # this endpoint restarts the ESP immediately.
+                            esp_post(candidate, "configure", {
+                                "ssid": ssid,
+                                "password": wifi_password,
+                            })
+                            save_wifi_password(ssid, wifi_password)
+                            return True
+                        except Exception:
+                            continue
+                    time.sleep(.75)
             # Windows can take several seconds to release esptool's handle and
             # enumerate the ESP32-C3 USB CDC port again after the hard reset.
             time.sleep(2 if platform.system() == "Windows" else .5)
-            deadline=time.monotonic()+(50 if platform.system() == "Windows" else 25)
+            deadline=time.monotonic()+(50 if platform.system() == "Windows" else 45)
             last_error=""
             attempted_ports=set()
             while time.monotonic()<deadline:
@@ -1541,14 +1609,18 @@ class MainWindow(QMainWindow):
                         connection.port = current_port
                         connection.open()
                         try:
-                            time.sleep(1.5)
+                            # Opening the native USB CDC port resets an ESP32-C3.
+                            # macOS exposes the device before the application
+                            # firmware is ready to receive data; writing earlier
+                            # causes a timeout and another reset on the next retry.
+                            time.sleep(
+                                4 if platform.system() == "Darwin" else 1.5)
                             connection.reset_input_buffer()
                             # Terminate any partial boot/provisioning line left
                             # in the ESP receive buffer before sending the real
                             # configuration. This is needed by both Arduino and
                             # ESP-IDF firmware after a USB reset.
                             connection.write(b"\n")
-                            connection.flush()
                             time.sleep(.2)
                             opened_until=min(deadline,time.monotonic()+12)
                             answer=bytearray()
@@ -1556,7 +1628,6 @@ class MainWindow(QMainWindow):
                             while time.monotonic()<opened_until:
                                 if time.monotonic()>=next_send:
                                     connection.write(command.encode())
-                                    connection.flush()
                                     next_send=time.monotonic()+1
                                 answer.extend(connection.read(512))
                                 if b"LAYERSHOT_CONFIG_OK" in answer:
@@ -1568,7 +1639,6 @@ class MainWindow(QMainWindow):
                                         "The app is retrying with a clean USB line.")
                                     answer.clear()
                                     connection.write(b"\n")
-                                    connection.flush()
                                     next_send=time.monotonic()+.25
                             last_error=bytes(answer).decode(errors="replace").strip()
                         finally:

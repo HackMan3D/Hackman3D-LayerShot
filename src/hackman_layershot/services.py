@@ -1,4 +1,4 @@
-import concurrent.futures, ipaddress, json, os, platform, re, socket, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request, uuid
+import concurrent.futures, ipaddress, json, os, platform, re, shutil, socket, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request, uuid
 from pathlib import Path
 
 def hidden_subprocess_kwargs():
