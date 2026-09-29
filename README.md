@@ -185,6 +185,18 @@ The documentation screenshots intentionally use the reserved example networks
 - a printer exposing Moonraker on the same local network;
 - macOS 14 or later on Apple Silicon, or Windows 10/11 (32-bit or 64-bit).
 
+### Amazon US component links
+
+**Affiliate disclosure:** As an Amazon Associate I earn from qualifying purchases.
+The links below lead to Amazon.com (US). Check the selected variant and pack
+contents before ordering. These listings were compared with the documented
+requirements; the exact seller products have not been physically validated.
+
+| Component | Quantity needed | Amazon US listing / notes |
+|---|---|---|
+| ESP32-C3 with 4 MB flash | 1 per installation | [FORIOT ESP32-C3 SuperMini, pack of 3](https://link.amazon/B02fMcUUE) — Check the board against the firmware and enclosure requirements; validate installation and camera triggering before a long print. |
+| USB-C data cable | 1 | [ZeroneTeck USB-C to USB-C, 3 ft](https://link.amazon/B075uRWBR) — For a USB-C host; confirm USB-C-to-C operation with your board. A basic USB data cable is sufficient; 20 Gbps / 100 W is not required. |
+
 ## Installation
 
 1. Download and open Hackman3D LayerShot.
